@@ -22,6 +22,20 @@ module System.Process.Typed
     , setStdin
     , setStdout
     , setStderr
+    , setWorkingDir
+    , setEnv
+    , setCloseFds
+    , setCreateGroup
+    , setDelegateCtlc
+#if MIN_VERSION_process(1, 3, 0)
+    , setDetachConsole
+    , setCreateNewConsole
+    , setNewSession
+#endif
+#if MIN_VERSION_process(1, 4, 0) && !WINDOWS
+    , setChildGroup
+    , setChildUser
+#endif
     , setCheckExitCode
 
       -- * Stream specs
@@ -80,6 +94,10 @@ import Data.Conduit (ConduitM)
 import qualified Data.Conduit as C
 import qualified Data.Conduit.Binary as CB
 
+#if MIN_VERSION_process(1, 4, 0) && !WINDOWS
+import System.Posix.Types (GroupID, UserID)
+#endif
+
 -- | An abstract configuration for a process, which can then be
 -- launched into an actual running 'Process'. Takes three type
 -- parameters, providing the types of standard input, standard output,
@@ -107,6 +125,23 @@ data ProcessConfig stdin stdout stderr = ProcessConfig
     , pcStdin :: !(StreamSpec 'STInput stdin)
     , pcStdout :: !(StreamSpec 'STOutput stdout)
     , pcStderr :: !(StreamSpec 'STOutput stderr)
+    , pcWorkingDir :: !(Maybe FilePath)
+    , pcEnv :: !(Maybe [(String, String)])
+    , pcCloseFds :: !Bool
+    , pcCreateGroup :: !Bool
+    , pcDelegateCtlc :: !Bool
+
+#if MIN_VERSION_process(1, 3, 0)
+    , pcDetachConsole :: !Bool
+    , pcCreateNewConsole :: !Bool
+    , pcNewSession :: !Bool
+#endif
+
+#if MIN_VERSION_process(1, 4, 0) && !WINDOWS
+    , pcChildGroup :: !(Maybe GroupID)
+    , pcChildUser :: !(Maybe UserID)
+#endif
+
     , pcCheckExitCode :: !Bool
     }
 instance (stdin ~ (), stdout ~ (), stderr ~ ())
@@ -174,6 +209,23 @@ defaultProcessConfig = ProcessConfig
     , pcStdin = inherit
     , pcStdout = inherit
     , pcStderr = inherit
+    , pcWorkingDir = Nothing
+    , pcEnv = Nothing
+    , pcCloseFds = False
+    , pcCreateGroup = False
+    , pcDelegateCtlc = False
+
+#if MIN_VERSION_process(1, 3, 0)
+    , pcDetachConsole = False
+    , pcCreateNewConsole = False
+    , pcNewSession = False
+#endif
+
+#if MIN_VERSION_process(1, 4, 0) && !WINDOWS
+    , pcChildGroup = Nothing
+    , pcChildUser = Nothing
+#endif
+
     , pcCheckExitCode = False
     }
 
@@ -231,6 +283,124 @@ setStderr :: StreamSpec 'STOutput stderr
           -> ProcessConfig stdin stdout stderr
 setStderr spec pc = pc { pcStderr = spec }
 
+-- | Set the working directory of the child process.
+--
+-- Default: current process's working directory.
+--
+-- @since 0.1.0.0
+setWorkingDir :: FilePath
+              -> ProcessConfig stdin stdout stderr
+              -> ProcessConfig stdin stdout stderr
+setWorkingDir dir pc = pc { pcWorkingDir = Just dir }
+
+-- | Set the environment variables of the child process.
+--
+-- Default: current process's environment.
+--
+-- @since 0.1.0.0
+setEnv :: [(String, String)]
+       -> ProcessConfig stdin stdout stderr
+       -> ProcessConfig stdin stdout stderr
+setEnv env pc = pc { pcEnv = Just env }
+
+-- | Should we close all file descriptors besides stdin, stdout, and
+-- stderr? See 'P.close_fds' for more information.
+--
+-- Default: False
+--
+-- @since 0.1.0.0
+setCloseFds
+    :: Bool
+    -> ProcessConfig stdin stdout stderr
+    -> ProcessConfig stdin stdout stderr
+setCloseFds x pc = pc { pcCloseFds = x }
+
+-- | Should we create a new process group?
+--
+-- Default: False
+--
+-- @since 0.1.0.0
+setCreateGroup
+    :: Bool
+    -> ProcessConfig stdin stdout stderr
+    -> ProcessConfig stdin stdout stderr
+setCreateGroup x pc = pc { pcCreateGroup = x }
+
+-- | Delegate handling of Ctrl-C to the child. For more information,
+-- see 'P.delegate_ctlc'.
+--
+-- Default: False
+--
+-- @since 0.1.0.0
+setDelegateCtlc
+    :: Bool
+    -> ProcessConfig stdin stdout stderr
+    -> ProcessConfig stdin stdout stderr
+setDelegateCtlc x pc = pc { pcDelegateCtlc = x }
+
+#if MIN_VERSION_process(1, 3, 0)
+
+-- | Detach console on Windows, see 'P.detach_console'.
+--
+-- Default: False
+--
+-- @since 0.1.0.0
+setDetachConsole
+    :: Bool
+    -> ProcessConfig stdin stdout stderr
+    -> ProcessConfig stdin stdout stderr
+setDetachConsole x pc = pc { pcDetachConsole = x }
+
+-- | Create new console on Windows, see 'P.create_new_console'.
+--
+-- Default: False
+--
+-- @since 0.1.0.0
+setCreateNewConsole
+    :: Bool
+    -> ProcessConfig stdin stdout stderr
+    -> ProcessConfig stdin stdout stderr
+setCreateNewConsole x pc = pc { pcCreateNewConsole = x }
+
+-- | Set a new session with the POSIX @setsid@ syscall, does nothing
+-- on non-POSIX. See 'P.new_session'.
+--
+-- Default: False
+--
+-- @since 0.1.0.0
+setNewSession
+    :: Bool
+    -> ProcessConfig stdin stdout stderr
+    -> ProcessConfig stdin stdout stderr
+setNewSession x pc = pc { pcNewSession = x }
+#endif
+
+#if MIN_VERSION_process(1, 4, 0) && !WINDOWS
+-- | Set the child process's group ID with the POSIX @setgid@ syscall,
+-- does nothing on non-POSIX. See 'P.child_group'.
+--
+-- Default: False
+--
+-- @since 0.1.0.0
+setChildGroup
+    :: GroupID
+    -> ProcessConfig stdin stdout stderr
+    -> ProcessConfig stdin stdout stderr
+setChildGroup x pc = pc { pcChildGroup = Just x }
+
+-- | Set the child process's user ID with the POSIX @setuid@ syscall,
+-- does nothing on non-POSIX. See 'P.child_user'.
+--
+-- Default: False
+--
+-- @since 0.1.0.0
+setChildUser
+    :: UserID
+    -> ProcessConfig stdin stdout stderr
+    -> ProcessConfig stdin stdout stderr
+setChildUser x pc = pc { pcChildUser = Just x }
+#endif
+
 -- | Should we throw an exception when the process exits with a
 -- non-success code?
 --
@@ -251,9 +421,6 @@ setCheckExitCode x p = p { pcCheckExitCode = x }
 -- alternatives to readProcess, runProcess, etc, that check the exit
 -- code. This could actually be a really nice convention: readProcess
 -- does not check, readProcess_ or readProcessCheck does.
-
--- TODO: Add setters for other settings in CreateProcess, like cwd and
--- env
 
 -- | Create a new 'StreamSpec' from the given 'P.StdStream' and a
 -- helper function. This function:
@@ -387,6 +554,23 @@ startProcess ProcessConfig {..} = liftIO $ do
             { P.std_in = ssStream pcStdin
             , P.std_out = ssStream pcStdout
             , P.std_err = ssStream pcStderr
+            , P.cwd = pcWorkingDir
+            , P.env = pcEnv
+            , P.close_fds = pcCloseFds
+            , P.create_group = pcCreateGroup
+            , P.delegate_ctlc = pcDelegateCtlc
+
+#if MIN_VERSION_process(1, 3, 0)
+            , P.detach_console = pcDetachConsole
+            , P.create_new_console = pcCreateNewConsole
+            , P.new_session = pcNewSession
+#endif
+
+#if MIN_VERSION_process(1, 4, 0) && !WINDOWS
+            , P.child_group = pcChildGroup
+            , P.child_user = pcChildUser
+#endif
+
             }
 
     (minH, moutH, merrH, pHandle) <- P.createProcess_ "startProcess" cp
