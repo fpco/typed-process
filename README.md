@@ -13,3 +13,6 @@ This is a proof of concept approach to a new process API. The guiding principles
 
 This API is still very much open for input, feedback very much
 welcome!
+
+Temporarily: you can check out the API docs at:
+http://www.snoyman.com/static/typed-process/System-Process-Typed.html
