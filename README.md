@@ -1,5 +1,7 @@
 ## typed-process
 
+[![Build Status](https://travis-ci.org/fpco/typed-process.svg?branch=master)](https://travis-ci.org/fpco/typed-process) [![Build status](https://ci.appveyor.com/api/projects/status/bhh7aekbgeqp7g5j/branch/master?svg=true)](https://ci.appveyor.com/project/snoyberg/typed-process/branch/master)
+
 Alternative API for processes, featuring more type safety, easier
 composability, and better streaming binary data support.
 
