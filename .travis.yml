@@ -69,11 +69,11 @@ matrix:
     compiler: ": #stack default"
     addons: {apt: {packages: [libgmp-dev]}}
 
-  - env: BUILD=stack ARGS="--resolver lts-2"
+  - env: BUILD=stack ARGS="--resolver lts-2" EXTRA_ARGS="http-conduit-2.1.10 http-client-0.4.31.1 http-client-tls-0.2.4 conduit-1.2.8 ."
     compiler: ": #stack 7.8.4"
     addons: {apt: {packages: [libgmp-dev]}}
 
-  - env: BUILD=stack ARGS="--resolver lts-3"
+  - env: BUILD=stack ARGS="--resolver lts-3" EXTRA_ARGS="http-conduit-2.1.10 http-client-0.4.31.1 http-client-tls-0.2.4 conduit-1.2.8 ."
     compiler: ": #stack 7.10.2"
     addons: {apt: {packages: [libgmp-dev]}}
 
@@ -100,7 +100,7 @@ matrix:
   #  compiler: ": #stack 7.8.4 osx"
   #  os: osx
 
-  - env: BUILD=stack ARGS="--resolver lts-3"
+  - env: BUILD=stack ARGS="--resolver lts-3" EXTRA_ARGS="http-conduit-2.1.10 http-client-0.4.31.1 http-client-tls-0.2.4 conduit-1.2.8 ."
     compiler: ": #stack 7.10.2 osx"
     os: osx
 
@@ -156,7 +156,7 @@ install:
   set -ex
   case "$BUILD" in
     stack)
-      stack --no-terminal --install-ghc $ARGS test --bench --only-dependencies
+      stack --no-terminal --install-ghc $ARGS test --bench --only-dependencies $EXTRA_ARGS
       ;;
     cabal)
       cabal --version
@@ -175,7 +175,7 @@ script:
   set -ex
   case "$BUILD" in
     stack)
-      stack --no-terminal $ARGS test --bench --no-run-benchmarks --haddock --no-haddock-deps
+      stack --no-terminal $ARGS test --bench --no-run-benchmarks --haddock --no-haddock-deps $EXTRA_ARGS
       ;;
     cabal)
       cabal install --enable-tests --enable-benchmarks --force-reinstalls --ghc-options=-O0 --reorder-goals --max-backjumps=-1 $CABALARGS $PACKAGES

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 module System.Process.TypedSpec (spec) where
 
@@ -15,6 +16,10 @@ import Data.String (IsString)
 import Data.Monoid ((<>))
 import qualified Data.Conduit.List as CL
 import qualified Data.ByteString.Base64 as B64
+
+#if !MIN_VERSION_base(4, 8, 0)
+import Control.Applicative ((*>))
+#endif
 
 spec :: Spec
 spec = do

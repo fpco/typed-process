@@ -78,7 +78,7 @@ module System.Process.Typed
 
 import qualified Data.ByteString as S
 import Data.ByteString.Lazy.Internal (defaultChunkSize)
-import Control.Exception (throw, throwIO)
+import Control.Exception (throwIO)
 import Control.Monad (void)
 import Control.Monad.IO.Class
 import qualified System.Process as P
@@ -96,6 +96,14 @@ import qualified Data.Conduit.Binary as CB
 
 #if MIN_VERSION_process(1, 4, 0) && !WINDOWS
 import System.Posix.Types (GroupID, UserID)
+#endif
+
+#if !MIN_VERSION_base(4, 8, 0)
+import Control.Applicative (Applicative (..), (<$>), (<$))
+#endif
+
+#if !MIN_VERSION_process(1, 3, 0)
+import qualified System.Process.Internals as P (createProcess_)
 #endif
 
 -- | An abstract configuration for a process, which can then be
@@ -664,7 +672,7 @@ runProcess pc = liftIO $ withProcess pc waitExitCode
 runProcess_ :: MonadIO m
             => ProcessConfig stdin stdout stderr
             -> m ()
-runProcess_ = void . runProcess
+runProcess_ = liftIO . void . runProcess
 
 -- | Wait for the process to exit and then return its 'ExitCode'.
 --

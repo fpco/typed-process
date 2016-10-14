@@ -40,7 +40,7 @@ test-suite typed-process-test
                      , conduit
                      , conduit-extra
                      , hspec
-                     , http-conduit
+                     , http-conduit >= 2.1.10
                      , temporary
                      , typed-process
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
