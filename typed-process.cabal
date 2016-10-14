@@ -23,7 +23,7 @@ library
                      , exceptions
                      , process
                      , stm
-                     , streaming-commons
+                     , transformers
   default-language:    Haskell2010
 
 test-suite typed-process-test
