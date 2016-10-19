@@ -72,9 +72,8 @@ spec = do
         res <- runProcess "false"
         res `shouldBe` ExitFailure 1
 
-    it "checked exit code" $ do
-        runProcess_ (setCheckExitCode True "false")
-            `shouldThrow` \ExitCodeException{} -> True
+    it "checked exit code" $
+        runProcess_ "false" `shouldThrow` \ExitCodeException{} -> True
 
     it "async" $ withSystemTempFile "httpbin" $ \fp h -> do
         bss <- withProcess (setStdin sink $ setStdout source "base64") $ \p ->

@@ -36,7 +36,6 @@ module System.Process.Typed
     , setChildGroup
     , setChildUser
 #endif
-    , setCheckExitCode
 
       -- * Stream specs
     , mkStreamSpec
@@ -54,7 +53,9 @@ module System.Process.Typed
     , startProcess
     , stopProcess
     , withProcess
+    , withProcess_
     , readProcess
+    , readProcess_
     , runProcess
     , runProcess_
 
@@ -63,6 +64,8 @@ module System.Process.Typed
       -- ** Process exit code
     , waitExitCode
     , waitExitCodeSTM
+    , getExitCode
+    , getExitCodeSTM
     , checkExitCode
     , checkExitCodeSTM
 
@@ -149,9 +152,30 @@ data ProcessConfig stdin stdout stderr = ProcessConfig
     , pcChildGroup :: !(Maybe GroupID)
     , pcChildUser :: !(Maybe UserID)
 #endif
-
-    , pcCheckExitCode :: !Bool
     }
+instance Show (ProcessConfig stdin stdout stderr) where
+    show pc = concat
+        [ case pcCmdSpec pc of
+            P.ShellCommand s -> "Shell command: " ++ s
+            P.RawCommand x xs -> "Raw command: " ++ unwords (map escape (x:xs))
+        , "\n"
+        , case pcWorkingDir pc of
+            Nothing -> ""
+            Just wd -> concat
+                [ "Run from: "
+                , wd
+                , "\n"
+                ]
+        , case pcEnv pc of
+            Nothing -> ""
+            Just e -> unlines
+                $ "Modified environment:"
+                : map (\(k, v) -> concat [k, "=", v]) e
+        ]
+      where
+        escape x
+            | any (`elem` " \\\"'") x = show x
+            | otherwise = x
 instance (stdin ~ (), stdout ~ (), stderr ~ ())
   => IsString (ProcessConfig stdin stdout stderr) where
     fromString s
@@ -172,7 +196,7 @@ data StreamType = STInput | STOutput
 -- @since 0.1.0.0
 data StreamSpec (streamType :: StreamType) a = StreamSpec
     { ssStream :: !P.StdStream
-    , ssCreate :: !(Maybe Handle -> Cleanup a)
+    , ssCreate :: !(ProcessConfig () () () -> Maybe Handle -> Cleanup a)
     }
     deriving Functor
 
@@ -202,13 +226,16 @@ instance Applicative Cleanup where
 --
 -- @since 0.1.0.0
 data Process stdin stdout stderr = Process
-    { pCleanup :: !(IO ())
+    { pConfig :: !(ProcessConfig () () ())
+    , pCleanup :: !(IO ())
     , pStdin :: !stdin
     , pStdout :: !stdout
     , pStderr :: !stderr
     , pHandle :: !P.ProcessHandle
     , pExitCode :: !(TMVar ExitCode)
     }
+instance Show (Process stdin stdout stderr) where
+    show p = "Running process: " ++ show (pConfig p)
 
 -- | Internal helper
 defaultProcessConfig :: ProcessConfig () () ()
@@ -233,8 +260,6 @@ defaultProcessConfig = ProcessConfig
     , pcChildGroup = Nothing
     , pcChildUser = Nothing
 #endif
-
-    , pcCheckExitCode = False
     }
 
 -- | Create a 'ProcessConfig' from the given command and arguments.
@@ -409,27 +434,6 @@ setChildUser
 setChildUser x pc = pc { pcChildUser = Just x }
 #endif
 
--- | Should we throw an exception when the process exits with a
--- non-success code?
---
--- If set to 'True', then when 'stopProcess' is called - either
--- directly or via 'withProcess' or other wrappers - the processes
--- exit code will be checked. Any exit code besides 'ExitSuccess' will
--- result in an 'ExitCodeException' being thrown.
---
--- Default: 'False'
---
--- @since 0.1.0.0
-setCheckExitCode :: Bool
-                 -> ProcessConfig stdin stdout stderr
-                 -> ProcessConfig stdin stdout stderr
-setCheckExitCode x p = p { pcCheckExitCode = x }
-
--- TODO: Instead of having this setting, we could consider just having
--- alternatives to readProcess, runProcess, etc, that check the exit
--- code. This could actually be a really nice convention: readProcess
--- does not check, readProcess_ or readProcessCheck does.
-
 -- | Create a new 'StreamSpec' from the given 'P.StdStream' and a
 -- helper function. This function:
 --
@@ -442,25 +446,25 @@ setCheckExitCode x p = p { pcCheckExitCode = x }
 --
 -- @since 0.1.0.0
 mkStreamSpec :: P.StdStream
-             -> (Maybe Handle -> IO (a, IO ()))
+             -> (ProcessConfig () () () -> Maybe Handle -> IO (a, IO ()))
              -> StreamSpec streamType a
-mkStreamSpec ss f = StreamSpec ss (Cleanup . f)
+mkStreamSpec ss f = StreamSpec ss (\pc mh -> Cleanup (f pc mh))
 
 -- | A stream spec which simply inherits the stream of the parent
 -- process.
 --
 -- @since 0.1.0.0
 inherit :: StreamSpec anyStreamType ()
-inherit = mkStreamSpec P.Inherit (\Nothing -> pure ((), return ()))
+inherit = mkStreamSpec P.Inherit (\_ Nothing -> pure ((), return ()))
 
 -- | A stream spec which will close the stream for the child process.
 --
 -- @since 0.1.0.0
 closed :: StreamSpec anyStreamType ()
 #if MIN_VERSION_process(1, 4, 0)
-closed = mkStreamSpec P.NoStream (\Nothing -> pure ((), return ()))
+closed = mkStreamSpec P.NoStream (\_ Nothing -> pure ((), return ()))
 #else
-closed = mkStreamSpec P.CreatePipe (\(Just h) -> (((), return ()) <$ hClose h))
+closed = mkStreamSpec P.CreatePipe (\_ (Just h) -> (((), return ()) <$ hClose h))
 #endif
 
 -- | An input stream spec which sets the input to the given
@@ -469,7 +473,7 @@ closed = mkStreamSpec P.CreatePipe (\(Just h) -> (((), return ()) <$ hClose h))
 --
 -- @since 0.1.0.0
 byteStringInput :: L.ByteString -> StreamSpec 'STInput ()
-byteStringInput lbs = StreamSpec P.CreatePipe $ \(Just h) -> Cleanup $ do
+byteStringInput lbs = mkStreamSpec P.CreatePipe $ \_ (Just h) -> do
     void $ async $ do
         L.hPut h lbs
         hClose h
@@ -489,7 +493,7 @@ byteStringInput lbs = StreamSpec P.CreatePipe $ \(Just h) -> Cleanup $ do
 --
 -- @since 0.1.0.0
 byteStringOutput :: StreamSpec 'STOutput (STM (Either ByteStringOutputException L.ByteString))
-byteStringOutput = StreamSpec P.CreatePipe $ \(Just h) -> Cleanup $ do
+byteStringOutput = mkStreamSpec P.CreatePipe $ \pc (Just h) -> do
     mvar <- newEmptyTMVarIO
 
     void $ async $ do
@@ -499,7 +503,7 @@ byteStringOutput = StreamSpec P.CreatePipe $ \(Just h) -> Cleanup $ do
                     then atomically $ putTMVar mvar $ Right $ L.fromChunks $ front []
                     else loop $ front . (bs:)
         loop id `catch` \e -> do
-            atomically $ void $ tryPutTMVar mvar $ Left $ ByteStringOutputException e
+            atomically $ void $ tryPutTMVar mvar $ Left $ ByteStringOutputException e pc
             throwIO e
 
     return (readTMVar mvar, hClose h)
@@ -509,7 +513,7 @@ byteStringOutput = StreamSpec P.CreatePipe $ \(Just h) -> Cleanup $ do
 --
 -- @since 0.1.0.0
 createPipe :: StreamSpec anyStreamType Handle
-createPipe = StreamSpec P.CreatePipe $ \(Just h) -> Cleanup $ return (h, hClose h)
+createPipe = mkStreamSpec P.CreatePipe $ \_ (Just h) -> return (h, hClose h)
 
 -- | Use the provided 'Handle' for the child process, and when the
 -- process exits, do /not/ close it. This is useful if, for example,
@@ -518,7 +522,7 @@ createPipe = StreamSpec P.CreatePipe $ \(Just h) -> Cleanup $ return (h, hClose 
 --
 -- @since 0.1.0.0
 useHandleOpen :: Handle -> StreamSpec anyStreamType ()
-useHandleOpen h = StreamSpec (P.UseHandle h) $ \Nothing -> Cleanup $ return ((), return ())
+useHandleOpen h = mkStreamSpec (P.UseHandle h) $ \_ Nothing -> return ((), return ())
 
 -- | Use the provided 'Handle' for the child process, and when the
 -- process exits, close it. If you have no reason to keep the 'Handle'
@@ -526,7 +530,7 @@ useHandleOpen h = StreamSpec (P.UseHandle h) $ \Nothing -> Cleanup $ return ((),
 --
 -- @since 0.1.0.0
 useHandleClose :: Handle -> StreamSpec anyStreamType ()
-useHandleClose h = StreamSpec (P.UseHandle h) $ \Nothing -> Cleanup $ return ((), hClose h)
+useHandleClose h = mkStreamSpec (P.UseHandle h) $ \_ Nothing -> return ((), hClose h)
 
 -- | Provide input to a process by writing to a conduit.
 --
@@ -553,7 +557,7 @@ source =
 startProcess :: MonadIO m
              => ProcessConfig stdin stdout stderr
              -> m (Process stdin stdout stderr)
-startProcess ProcessConfig {..} = liftIO $ do
+startProcess pConfig'@ProcessConfig {..} = liftIO $ do
     let cp0 =
             case pcCmdSpec of
                 P.ShellCommand cmd -> P.shell cmd
@@ -584,16 +588,16 @@ startProcess ProcessConfig {..} = liftIO $ do
     (minH, moutH, merrH, pHandle) <- P.createProcess_ "startProcess" cp
 
     ((pStdin, pStdout, pStderr), pCleanup1) <- runCleanup $ (,,)
-        <$> ssCreate pcStdin minH
-        <*> ssCreate pcStdout moutH
-        <*> ssCreate pcStderr merrH
+        <$> ssCreate pcStdin  pConfig minH
+        <*> ssCreate pcStdout pConfig moutH
+        <*> ssCreate pcStderr pConfig merrH
 
     pExitCode <- newEmptyTMVarIO
     void $ async $ do
         ec <- P.waitForProcess pHandle
         atomically $ putTMVar pExitCode ec
 
-    let pCleanup2 = pCleanup1 `finally` do
+    let pCleanup = pCleanup1 `finally` do
             mec <- atomically $ tryReadTMVar pExitCode
             case mec of
                 Nothing -> do
@@ -602,24 +606,16 @@ startProcess ProcessConfig {..} = liftIO $ do
                     -- a SIGKILL on Unix?
                     void $ atomically $ readTMVar pExitCode
                 Just _ -> return ()
-        pCleanup
-            | pcCheckExitCode = do
-                eres <- try pCleanup2
-                ec <- atomically $ readTMVar pExitCode
-                case (ec, eres) of
-                    (ExitSuccess, Right ()) -> return ()
-                    (ExitSuccess, Left e) -> throwIO e
-                    _ -> throwIO $ ExitCodeException ec $ either Just (const Nothing) eres
-            | otherwise = pCleanup2
 
     return Process {..}
+  where
+    pConfig = clearStreams pConfig'
 
 -- | Close a process and release any resources acquired. This will
 -- ensure 'P.terminateProcess' is called, wait for the process to
 -- actually exit, and then close out resources allocated for the
--- streams. In the event of any cleanup exceptions being thrown, or if
--- a non-success exit code was received and 'setCheckExitCode' was
--- used, this will throw an exception.
+-- streams. In the event of any cleanup exceptions being thrown this
+-- will throw an exception.
 --
 -- @since 0.1.0.0
 stopProcess :: MonadIO m
@@ -636,6 +632,17 @@ withProcess :: (MonadIO m, C.MonadMask m)
             -> (Process stdin stdout stderr -> m a)
             -> m a
 withProcess config = C.bracket (startProcess config) stopProcess
+
+-- | Same as 'withProcess', but also calls 'checkExitCode'
+--
+-- @since 0.1.0.0
+withProcess_ :: (MonadIO m, C.MonadMask m)
+             => ProcessConfig stdin stdout stderr
+             -> (Process stdin stdout stderr -> m a)
+             -> m a
+withProcess_ config = C.bracket
+    (startProcess config)
+    (\p -> stopProcess p `finally` checkExitCode p)
 
 -- | Run a process, capture its standard output and error as a
 -- 'L.ByteString', wait for it to complete, and then return its exit
@@ -657,6 +664,22 @@ readProcess pc =
     pc' = setStdout byteStringOutput
         $ setStderr byteStringOutput pc
 
+-- | Same as 'readProcess', but instead of returning the 'ExitCode',
+-- checks it with 'checkExitCode'.
+--
+-- @since 0.1.0.0
+readProcess_ :: MonadIO m
+             => ProcessConfig stdin stdoutIgnored stderrIgnored
+             -> m (L.ByteString, L.ByteString)
+readProcess_ pc =
+    liftIO $ withProcess pc' $ \p -> atomically $ (,)
+        <$> (checkExitCodeSTM p
+         *> (getStdout p >>= either throwSTM return))
+        <*> (getStderr p >>= either throwSTM return)
+  where
+    pc' = setStdout byteStringOutput
+        $ setStderr byteStringOutput pc
+
 -- | Run the given process, wait for it to exit, and returns its
 -- 'ExitCode'.
 --
@@ -672,7 +695,7 @@ runProcess pc = liftIO $ withProcess pc waitExitCode
 runProcess_ :: MonadIO m
             => ProcessConfig stdin stdout stderr
             -> m ()
-runProcess_ = liftIO . void . runProcess
+runProcess_ pc = liftIO $ withProcess pc checkExitCode
 
 -- | Wait for the process to exit and then return its 'ExitCode'.
 --
@@ -689,14 +712,39 @@ waitExitCodeSTM = readTMVar . pExitCode
 -- | Check if a process has exited and, if so, return its 'ExitCode'.
 --
 -- @since 0.1.0.0
-checkExitCode :: MonadIO m => Process stdin stdout stderr -> m (Maybe ExitCode)
+getExitCode :: MonadIO m => Process stdin stdout stderr -> m (Maybe ExitCode)
+getExitCode = liftIO . atomically . getExitCodeSTM
+
+-- | Same as 'getExitCode', but in 'STM'.
+--
+-- @since 0.1.0.0
+getExitCodeSTM :: Process stdin stdout stderr -> STM (Maybe ExitCode)
+getExitCodeSTM = tryReadTMVar . pExitCode
+
+-- | Wait for a process to exit, and ensure that it exited
+-- successfully. If not, throws an 'ExitCodeException'.
+--
+-- @since 0.1.0.0
+checkExitCode :: MonadIO m => Process stdin stdout stderr -> m ()
 checkExitCode = liftIO . atomically . checkExitCodeSTM
 
 -- | Same as 'checkExitCode', but in 'STM'.
 --
 -- @since 0.1.0.0
-checkExitCodeSTM :: Process stdin stdout stderr -> STM (Maybe ExitCode)
-checkExitCodeSTM = tryReadTMVar . pExitCode
+checkExitCodeSTM :: Process stdin stdout stderr -> STM ()
+checkExitCodeSTM p = do
+    ec <- readTMVar (pExitCode p)
+    case ec of
+        ExitSuccess -> return ()
+        _ -> throwSTM (ExitCodeException ec (clearStreams (pConfig p)))
+
+-- | Internal
+clearStreams :: ProcessConfig stdin stdout stderr -> ProcessConfig () () ()
+clearStreams pc = pc
+    { pcStdin = inherit
+    , pcStdout = inherit
+    , pcStderr = inherit
+    }
 
 -- | Get the child's standard input stream value.
 --
@@ -716,13 +764,12 @@ getStdout = pStdout
 getStderr :: Process stdin stdout stderr -> stderr
 getStderr = pStderr
 
--- | Exit code generated by 'stopProcess' when 'setCheckExitCode' is
--- 'True' and a process exits with a non-success code. Contains the
--- non-success code, and if any other exceptions occur during cleanup,
--- that exception.
+-- | Exception thrown by 'checkExitCode' in the event of a non-success
+-- exit code. Note that 'checkExitCode' is called by other functions
+-- as well, like 'runProcess_' or 'readProcess_'.
 --
 -- @since 0.1.0.0
-data ExitCodeException = ExitCodeException ExitCode (Maybe SomeException)
+data ExitCodeException = ExitCodeException ExitCode (ProcessConfig () () ())
     deriving (Show, Typeable)
 instance Exception ExitCodeException
 
@@ -730,6 +777,6 @@ instance Exception ExitCodeException
 -- process, used by 'byteStringOutput'.
 --
 -- @since 0.1.0.0
-newtype ByteStringOutputException = ByteStringOutputException SomeException
+data ByteStringOutputException = ByteStringOutputException SomeException (ProcessConfig () () ())
     deriving (Show, Typeable)
 instance Exception ByteStringOutputException
