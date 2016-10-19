@@ -5,6 +5,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- | Please see the README.md file for examples of using this API.
 module System.Process.Typed
     ( -- * Types
@@ -83,7 +84,7 @@ module System.Process.Typed
 
 import qualified Data.ByteString as S
 import Data.ByteString.Lazy.Internal (defaultChunkSize)
-import Control.Exception (throwIO)
+import Control.Exception (IOException, throwIO)
 import Control.Monad (void)
 import Control.Monad.IO.Class
 import qualified System.Process as P
@@ -604,7 +605,12 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
             mec <- atomically $ tryReadTMVar pExitCode
             case mec of
                 Nothing -> do
-                    P.terminateProcess pHandle
+                    -- Ignore IOExceptions coming out of
+                    -- terminateProcess: it can result because of a
+                    -- race condition between the process closing and
+                    -- our TMVar being updated.
+                    P.terminateProcess pHandle `catch`
+                      \(_ :: IOException) -> return ()
                     -- TODO: should we put in a timeout and then send
                     -- a SIGKILL on Unix?
                     void $ atomically $ readTMVar pExitCode
