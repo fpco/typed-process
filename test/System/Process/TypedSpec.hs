@@ -76,7 +76,7 @@ spec = do
         runProcess_ "false" `shouldThrow` \ExitCodeException{} -> True
 
     it "async" $ withSystemTempFile "httpbin" $ \fp h -> do
-        bss <- withProcess (setStdin sink $ setStdout source "base64") $ \p ->
+        bss <- withProcess (setStdin createSink $ setStdout createSource "base64") $ \p ->
             runConcurrently $
                 Concurrently
                     ( httpSink "http://httpbin.org" $ \_res ->

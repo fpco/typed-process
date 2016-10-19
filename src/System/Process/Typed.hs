@@ -46,8 +46,10 @@ module System.Process.Typed
     , createPipe
     , useHandleOpen
     , useHandleClose
-    , sink
-    , source
+
+      -- ** Conduit
+    , createSink
+    , createSource
 
       -- * Launch a process
     , startProcess
@@ -89,9 +91,10 @@ import Control.Monad.Catch as C
 import Data.Typeable (Typeable)
 import System.IO (Handle, hClose)
 import Control.Concurrent.Async (async)
-import Control.Concurrent.STM (newEmptyTMVarIO, atomically, putTMVar, TMVar, readTMVar, tryReadTMVar, STM, tryPutTMVar, throwSTM)
+import Control.Concurrent.STM (newEmptyTMVarIO, atomically, putTMVar, TMVar, readTMVar, tryReadTMVar, STM, tryPutTMVar, throwSTM, catchSTM)
 import System.Exit (ExitCode (ExitSuccess))
 import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Lazy.Char8 as L8
 import Data.String (IsString (fromString))
 import Data.Conduit (ConduitM)
 import qualified Data.Conduit as C
@@ -488,11 +491,11 @@ byteStringInput lbs = mkStreamSpec P.CreatePipe $ \_ (Just h) -> do
 -- until it's ready.
 --
 -- In the event of any exception occurring when reading from the
--- 'Handle', the result of this function will be a 'Left' value
--- containing a 'ByteStringOutputException'.
+-- 'Handle', the 'STM' action will throw a
+-- 'ByteStringOutputException'.
 --
 -- @since 0.1.0.0
-byteStringOutput :: StreamSpec 'STOutput (STM (Either ByteStringOutputException L.ByteString))
+byteStringOutput :: StreamSpec 'STOutput (STM L.ByteString)
 byteStringOutput = mkStreamSpec P.CreatePipe $ \pc (Just h) -> do
     mvar <- newEmptyTMVarIO
 
@@ -506,7 +509,7 @@ byteStringOutput = mkStreamSpec P.CreatePipe $ \pc (Just h) -> do
             atomically $ void $ tryPutTMVar mvar $ Left $ ByteStringOutputException e pc
             throwIO e
 
-    return (readTMVar mvar, hClose h)
+    return (readTMVar mvar >>= either throwSTM return, hClose h)
 
 -- | Create a new pipe between this process and the child, and return
 -- a 'Handle' to communicate with the child.
@@ -535,16 +538,16 @@ useHandleClose h = mkStreamSpec (P.UseHandle h) $ \_ Nothing -> return ((), hClo
 -- | Provide input to a process by writing to a conduit.
 --
 -- @since 0.1.0.0
-sink :: MonadIO m => StreamSpec 'STInput (ConduitM S.ByteString o m ())
-sink =
+createSink :: MonadIO m => StreamSpec 'STInput (ConduitM S.ByteString o m ())
+createSink =
     (\h -> C.addCleanup (\_ -> liftIO $ hClose h) (CB.sinkHandle h))
     <$> createPipe
 
 -- | Read output from a process by read from a conduit.
 --
 -- @since 0.1.0.0
-source :: MonadIO m => StreamSpec 'STOutput (ConduitM i S.ByteString m ())
-source =
+createSource :: MonadIO m => StreamSpec 'STOutput (ConduitM i S.ByteString m ())
+createSource =
     (\h -> C.addCleanup (\_ -> liftIO $ hClose h) (CB.sourceHandle h))
     <$> createPipe
 
@@ -658,8 +661,8 @@ readProcess :: MonadIO m
 readProcess pc =
     liftIO $ withProcess pc' $ \p -> atomically $ (,,)
         <$> waitExitCodeSTM p
-        <*> (getStdout p >>= either throwSTM return)
-        <*> (getStderr p >>= either throwSTM return)
+        <*> getStdout p
+        <*> getStderr p
   where
     pc' = setStdout byteStringOutput
         $ setStderr byteStringOutput pc
@@ -672,10 +675,14 @@ readProcess_ :: MonadIO m
              => ProcessConfig stdin stdoutIgnored stderrIgnored
              -> m (L.ByteString, L.ByteString)
 readProcess_ pc =
-    liftIO $ withProcess pc' $ \p -> atomically $ (,)
-        <$> (checkExitCodeSTM p
-         *> (getStdout p >>= either throwSTM return))
-        <*> (getStderr p >>= either throwSTM return)
+    liftIO $ withProcess pc' $ \p -> atomically $ do
+        stdout <- getStdout p
+        stderr <- getStderr p
+        checkExitCodeSTM p `catchSTM` \ece -> throwSTM ece
+            { eceStdout = stdout
+            , eceStderr = stderr
+            }
+        return (stdout, stderr)
   where
     pc' = setStdout byteStringOutput
         $ setStderr byteStringOutput pc
@@ -736,7 +743,12 @@ checkExitCodeSTM p = do
     ec <- readTMVar (pExitCode p)
     case ec of
         ExitSuccess -> return ()
-        _ -> throwSTM (ExitCodeException ec (clearStreams (pConfig p)))
+        _ -> throwSTM ExitCodeException
+            { eceExitCode = ec
+            , eceProcessConfig = clearStreams (pConfig p)
+            , eceStdout = L.empty
+            , eceStderr = L.empty
+            }
 
 -- | Internal
 clearStreams :: ProcessConfig stdin stdout stderr -> ProcessConfig () () ()
@@ -769,9 +781,27 @@ getStderr = pStderr
 -- as well, like 'runProcess_' or 'readProcess_'.
 --
 -- @since 0.1.0.0
-data ExitCodeException = ExitCodeException ExitCode (ProcessConfig () () ())
-    deriving (Show, Typeable)
+data ExitCodeException = ExitCodeException
+    { eceExitCode :: ExitCode
+    , eceProcessConfig :: ProcessConfig () () ()
+    , eceStdout :: L.ByteString
+    , eceStderr :: L.ByteString
+    }
+    deriving Typeable
 instance Exception ExitCodeException
+instance Show ExitCodeException where
+    show ece = concat
+        [ "Received "
+        , show (eceExitCode ece)
+        , " when running\n"
+        , show (eceProcessConfig ece)
+        , if L.null (eceStdout ece)
+            then ""
+            else "Standard output:\n\n" ++ L8.unpack (eceStdout ece)
+        , if L.null (eceStderr ece)
+            then ""
+            else "Standard error:\n\n" ++ L8.unpack (eceStderr ece)
+        ]
 
 -- | Wrapper for when an exception is thrown when reading from a child
 -- process, used by 'byteStringOutput'.
