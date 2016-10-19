@@ -37,7 +37,7 @@ main = do
     runProcess "false" >>= print
 
     -- Check that the exit code is a success
-    runProcess "true"
+    runProcess_ "true"
     -- This will throw an exception: runProcess_ "false"
 
     -- Capture output and error
