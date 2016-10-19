@@ -79,7 +79,7 @@ spec = do
         bss <- withProcess (setStdin createSink $ setStdout createSource "base64") $ \p ->
             runConcurrently $
                 Concurrently
-                    ( httpSink "http://httpbin.org" $ \_res ->
+                    ( httpSink "https://raw.githubusercontent.com/fpco/typed-process/master/README.md" $ \_res ->
                     CB.conduitHandle h .| getStdin p) *>
                 Concurrently
                     ( runConduit
