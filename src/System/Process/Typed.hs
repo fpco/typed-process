@@ -84,7 +84,7 @@ module System.Process.Typed
 
 import qualified Data.ByteString as S
 import Data.ByteString.Lazy.Internal (defaultChunkSize)
-import Control.Exception (IOException, throwIO)
+import Control.Exception (throwIO)
 import Control.Monad (void)
 import Control.Monad.IO.Class
 import qualified System.Process as P
