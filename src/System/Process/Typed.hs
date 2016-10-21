@@ -91,7 +91,7 @@ import qualified System.Process as P
 import Control.Monad.Catch as C
 import Data.Typeable (Typeable)
 import System.IO (Handle, hClose)
-import Control.Concurrent.Async (async)
+import Control.Concurrent.Async (async, cancel, waitCatch)
 import Control.Concurrent.STM (newEmptyTMVarIO, atomically, putTMVar, TMVar, readTMVar, tryReadTMVar, STM, tryPutTMVar, throwSTM, catchSTM)
 import System.Exit (ExitCode (ExitSuccess))
 import qualified Data.ByteString.Lazy as L
@@ -597,24 +597,30 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
         <*> ssCreate pcStderr pConfig merrH
 
     pExitCode <- newEmptyTMVarIO
-    void $ async $ do
+    waitingThread <- async $ do
         ec <- P.waitForProcess pHandle
         atomically $ putTMVar pExitCode ec
+        return ec
 
     let pCleanup = pCleanup1 `finally` do
-            mec <- atomically $ tryReadTMVar pExitCode
-            case mec of
-                Nothing -> do
-                    -- Ignore IOExceptions coming out of
-                    -- terminateProcess: it can result because of a
-                    -- race condition between the process closing and
-                    -- our TMVar being updated.
-                    P.terminateProcess pHandle `catch`
-                      \(_ :: IOException) -> return ()
-                    -- TODO: should we put in a timeout and then send
-                    -- a SIGKILL on Unix?
-                    void $ atomically $ readTMVar pExitCode
-                Just _ -> return ()
+            -- First: stop calling waitForProcess, so that we can
+            -- avoid race conditions where the process is removed from
+            -- the system process table while we're trying to
+            -- terminate it.
+            cancel waitingThread
+
+            -- Now check if the process had already exited
+            eec <- waitCatch waitingThread
+
+            case eec of
+                -- Process already exited, nothing to do
+                Right _ec -> return ()
+
+                -- Process didn't exit yet, let's terminate it and
+                -- then call waitForProcess ourselves
+                Left _ -> do
+                    P.terminateProcess pHandle
+                    void $ P.waitForProcess pHandle
 
     return Process {..}
   where
