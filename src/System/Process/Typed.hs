@@ -85,15 +85,17 @@ module System.Process.Typed
 import qualified Data.ByteString as S
 import Data.ByteString.Lazy.Internal (defaultChunkSize)
 import Control.Exception (throwIO)
-import Control.Monad (void)
+import Control.Monad (guard, when, void)
 import Control.Monad.IO.Class
 import qualified System.Process as P
 import Control.Monad.Catch as C
 import Data.Typeable (Typeable)
 import System.IO (Handle, hClose)
-import Control.Concurrent.Async (async, cancel, waitCatch)
-import Control.Concurrent.STM (newEmptyTMVarIO, atomically, putTMVar, TMVar, readTMVar, tryReadTMVar, STM, tryPutTMVar, throwSTM, catchSTM)
+import Control.Concurrent (forkIO)
+import Control.Concurrent.Async (async)
+import Control.Concurrent.STM (newEmptyTMVarIO, atomically, putTMVar, TMVar, readTMVar, tryReadTMVar, isEmptyTMVar, STM, tryPutTMVar, throwSTM, catchSTM)
 import System.Exit (ExitCode (ExitSuccess))
+import System.IO.Error (isDoesNotExistError)
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as L8
 import Data.String (IsString (fromString))
@@ -597,30 +599,19 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
         <*> ssCreate pcStderr pConfig merrH
 
     pExitCode <- newEmptyTMVarIO
-    waitingThread <- async $ do
+    _ <- forkIO $ do
         ec <- P.waitForProcess pHandle
         atomically $ putTMVar pExitCode ec
-        return ec
 
     let pCleanup = pCleanup1 `finally` do
-            -- First: stop calling waitForProcess, so that we can
-            -- avoid race conditions where the process is removed from
-            -- the system process table while we're trying to
-            -- terminate it.
-            cancel waitingThread
-
-            -- Now check if the process had already exited
-            eec <- waitCatch waitingThread
-
-            case eec of
-                -- Process already exited, nothing to do
-                Right _ec -> return ()
-
-                -- Process didn't exit yet, let's terminate it and
-                -- then call waitForProcess ourselves
-                Left _ -> do
-                    P.terminateProcess pHandle
-                    void $ P.waitForProcess pHandle
+            running <- atomically $ isEmptyTMVar pExitCode
+            when running $
+                -- Process still could have terminated just after checking
+                -- the TMVar, so ignore eSRCH
+                catchJust
+                    (\e -> guard (isDoesNotExistError e))
+                    (P.terminateProcess pHandle)
+                    return
 
     return Process {..}
   where
