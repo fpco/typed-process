@@ -620,7 +620,8 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
                 -- then call waitForProcess ourselves
                 Left _ -> do
                     P.terminateProcess pHandle
-                    void $ P.waitForProcess pHandle
+                    ec <- P.waitForProcess pHandle
+                    atomically $ putTMVar pExitCode ec
 
     return Process {..}
   where
