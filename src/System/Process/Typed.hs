@@ -84,7 +84,7 @@ module System.Process.Typed
 
 import qualified Data.ByteString as S
 import Data.ByteString.Lazy.Internal (defaultChunkSize)
-import Control.Exception (throwIO)
+import Control.Exception (assert, evaluate, throwIO)
 import Control.Monad (void)
 import Control.Monad.IO.Class
 import qualified System.Process as P
@@ -621,7 +621,8 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
                 Left _ -> do
                     P.terminateProcess pHandle
                     ec <- P.waitForProcess pHandle
-                    atomically $ putTMVar pExitCode ec
+                    success <- atomically $ tryPutTMVar pExitCode ec
+                    evaluate $ assert success ()
 
     return Process {..}
   where
