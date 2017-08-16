@@ -2,7 +2,7 @@ name:                typed-process
 version:             0.1.0.1
 synopsis:            Run external processes, with strong typing of streams
 description:         Please see README.md
-homepage:            https://github.com/fpco/typed-process#readme
+homepage:            https://haskell-lang.org/library/typed-process
 license:             MIT
 license-file:        LICENSE
 author:              Michael Snoyman
