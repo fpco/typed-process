@@ -845,6 +845,6 @@ instance Exception ByteStringOutputException
 -- 'stopProcess' should be called either way in order to cleanup resources
 -- allocated by the @typed-process@.
 --
--- @since 0.1.0.2
+-- @since 0.1.1
 unsafeProcessHandle :: Process stdin stdout stderr -> P.ProcessHandle
 unsafeProcessHandle = pHandle
