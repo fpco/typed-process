@@ -1,5 +1,5 @@
 name:                typed-process
-version:             0.1.0.1
+version:             0.1.0.2
 synopsis:            Run external processes, with strong typing of streams
 description:         Please see README.md
 homepage:            https://haskell-lang.org/library/typed-process
