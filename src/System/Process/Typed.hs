@@ -80,6 +80,8 @@ module System.Process.Typed
       -- * Exceptions
     , ExitCodeException (..)
     , ByteStringOutputException (..)
+      -- * Unsafe functions
+    , unsafeProcessHandle
     ) where
 
 import qualified Data.ByteString as S
@@ -824,3 +826,23 @@ instance Show ExitCodeException where
 data ByteStringOutputException = ByteStringOutputException SomeException (ProcessConfig () () ())
     deriving (Show, Typeable)
 instance Exception ByteStringOutputException
+
+-- | Take 'System.Process.ProcessHandle' out of the 'Process'.
+-- This method is needed in cases one need to use low level functions
+-- from the @process@ package. Use cases for this method are:
+--
+--   1. Send a special signal to the process.
+--   2. Terminate the process group instead of terminating single process.
+--   3. Use platform specific API on the underlying process.
+--
+-- This method is considered unsafe because the actions it performs on
+-- the underlying process may overlap with the functionality that
+-- @typed-process@ provides. For example the user should not call
+-- 'System.Process.waitForProcess' on the process handle as eiter
+-- 'System.Process.waitForProcess' or 'stopProcess' will lock.
+-- Additionally, even if process was terminated by the
+-- 'System.Process.terminateProcess' or by sending signal,
+-- 'stopProcess' should be called either way in order to cleanup resources
+-- allocated by the @typed-process@.
+unsafeProcessHandle :: Process stdin stdout stderr -> P.ProcessHandle
+unsafeProcessHandle = pHandle
