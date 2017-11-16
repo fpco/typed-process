@@ -6,7 +6,15 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ScopedTypeVariables #-}
--- | Please see the README.md file for examples of using this API.
+{-|
+Please see the README.md file for examples of using this API.
+
+__Applications using this library MUST use @-threaded@__ to link with the
+threaded version of the RTS. 'spawnProcess' and the others spawn a Haskell
+thread that blocks until the process exits. Without @-threaded@ this will block
+/all/ the Haskell threads in your program until the spawned process exits.
+
+-}
 module System.Process.Typed
     ( -- * Types
       ProcessConfig
