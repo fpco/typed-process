@@ -82,11 +82,10 @@ module System.Process.Typed
 
 import qualified Data.ByteString as S
 import Data.ByteString.Lazy.Internal (defaultChunkSize)
-import Control.Exception (assert, evaluate, throwIO)
+import Control.Exception (assert, evaluate, throwIO, Exception, SomeException, finally, bracket, onException, catch)
 import Control.Monad (void)
 import Control.Monad.IO.Class
 import qualified System.Process as P
-import Control.Monad.Catch as C
 import Data.Typeable (Typeable)
 import System.IO (Handle, hClose)
 import Control.Concurrent.Async (async, cancel, waitCatch)
@@ -622,21 +621,25 @@ stopProcess = liftIO . pCleanup
 -- | Use the bracket pattern to call 'startProcess' and ensure
 -- 'stopProcess' is called.
 --
+-- In version 0.2.0.0, this function was monomorphized to @IO@ to
+-- avoid a dependency on the exceptions package.
+--
 -- @since 0.1.0.0
-withProcess :: (MonadIO m, C.MonadMask m)
-            => ProcessConfig stdin stdout stderr
-            -> (Process stdin stdout stderr -> m a)
-            -> m a
-withProcess config = C.bracket (startProcess config) stopProcess
+withProcess :: ProcessConfig stdin stdout stderr
+            -> (Process stdin stdout stderr -> IO a)
+            -> IO a
+withProcess config = bracket (startProcess config) stopProcess
 
 -- | Same as 'withProcess', but also calls 'checkExitCode'
 --
+-- In version 0.2.0.0, this function was monomorphized to @IO@ to
+-- avoid a dependency on the exceptions package.
+--
 -- @since 0.1.0.0
-withProcess_ :: (MonadIO m, C.MonadMask m)
-             => ProcessConfig stdin stdout stderr
-             -> (Process stdin stdout stderr -> m a)
-             -> m a
-withProcess_ config = C.bracket
+withProcess_ :: ProcessConfig stdin stdout stderr
+             -> (Process stdin stdout stderr -> IO a)
+             -> IO a
+withProcess_ config = bracket
     (startProcess config)
     (\p -> stopProcess p `finally` checkExitCode p)
 

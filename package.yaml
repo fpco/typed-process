@@ -17,7 +17,6 @@ dependencies:
 - base >=4.7 && <5
 - async
 - bytestring
-- exceptions
 - process >=1.2
 - stm
 - transformers
