@@ -1,0 +1,42 @@
+name:        typed-process
+version:     0.2.0.0
+synopsis:    Run external processes, with strong typing of streams
+description: Please see the tutorial at <https://haskell-lang.org/library/typed-process>
+category:    System
+author:      Michael Snoyman
+maintainer:  michael@snoyman.com
+license:     MIT
+github:      fpco/typed-process
+homepage:    https://haskell-lang.org/library/typed-process
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+dependencies:
+- base >=4.7 && <5
+- async
+- bytestring
+- process >=1.2
+- stm
+- transformers
+
+library:
+  source-dirs: src
+  when:
+  - condition: os(windows)
+    cpp-options: -DWINDOWS
+
+tests:
+  typed-process-test:
+    main: Spec.hs
+    source-dirs: test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - base64-bytestring
+    - hspec
+    - temporary
+    - typed-process

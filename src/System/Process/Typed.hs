@@ -56,10 +56,6 @@ module System.Process.Typed
     , useHandleOpen
     , useHandleClose
 
-      -- ** Conduit
-    , createSink
-    , createSource
-
       -- * Launch a process
     , startProcess
     , stopProcess
@@ -94,11 +90,10 @@ module System.Process.Typed
 
 import qualified Data.ByteString as S
 import Data.ByteString.Lazy.Internal (defaultChunkSize)
-import Control.Exception (assert, evaluate, throwIO)
+import Control.Exception (assert, evaluate, throwIO, Exception, SomeException, finally, bracket, onException, catch)
 import Control.Monad (void)
 import Control.Monad.IO.Class
 import qualified System.Process as P
-import Control.Monad.Catch as C
 import Data.Typeable (Typeable)
 import System.IO (Handle, hClose)
 import Control.Concurrent.Async (async, cancel, waitCatch)
@@ -107,9 +102,6 @@ import System.Exit (ExitCode (ExitSuccess))
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as L8
 import Data.String (IsString (fromString))
-import Data.Conduit (ConduitM)
-import qualified Data.Conduit as C
-import qualified Data.Conduit.Binary as CB
 
 #if MIN_VERSION_process(1, 4, 0) && !WINDOWS
 import System.Posix.Types (GroupID, UserID)
@@ -546,22 +538,6 @@ useHandleOpen h = mkStreamSpec (P.UseHandle h) $ \_ Nothing -> return ((), retur
 useHandleClose :: Handle -> StreamSpec anyStreamType ()
 useHandleClose h = mkStreamSpec (P.UseHandle h) $ \_ Nothing -> return ((), hClose h)
 
--- | Provide input to a process by writing to a conduit.
---
--- @since 0.1.0.0
-createSink :: MonadIO m => StreamSpec 'STInput (ConduitM S.ByteString o m ())
-createSink =
-    (\h -> C.addCleanup (\_ -> liftIO $ hClose h) (CB.sinkHandle h))
-    <$> createPipe
-
--- | Read output from a process by read from a conduit.
---
--- @since 0.1.0.0
-createSource :: MonadIO m => StreamSpec 'STOutput (ConduitM i S.ByteString m ())
-createSource =
-    (\h -> C.addCleanup (\_ -> liftIO $ hClose h) (CB.sourceHandle h))
-    <$> createPipe
-
 -- | Launch a process based on the given 'ProcessConfig'. You should
 -- ensure that you close 'stopProcess' on the result. It's usually
 -- better to use one of the functions in this module which ensures
@@ -653,21 +629,25 @@ stopProcess = liftIO . pCleanup
 -- | Use the bracket pattern to call 'startProcess' and ensure
 -- 'stopProcess' is called.
 --
+-- In version 0.2.0.0, this function was monomorphized to @IO@ to
+-- avoid a dependency on the exceptions package.
+--
 -- @since 0.1.0.0
-withProcess :: (MonadIO m, C.MonadMask m)
-            => ProcessConfig stdin stdout stderr
-            -> (Process stdin stdout stderr -> m a)
-            -> m a
-withProcess config = C.bracket (startProcess config) stopProcess
+withProcess :: ProcessConfig stdin stdout stderr
+            -> (Process stdin stdout stderr -> IO a)
+            -> IO a
+withProcess config = bracket (startProcess config) stopProcess
 
 -- | Same as 'withProcess', but also calls 'checkExitCode'
 --
+-- In version 0.2.0.0, this function was monomorphized to @IO@ to
+-- avoid a dependency on the exceptions package.
+--
 -- @since 0.1.0.0
-withProcess_ :: (MonadIO m, C.MonadMask m)
-             => ProcessConfig stdin stdout stderr
-             -> (Process stdin stdout stderr -> m a)
-             -> m a
-withProcess_ config = C.bracket
+withProcess_ :: ProcessConfig stdin stdout stderr
+             -> (Process stdin stdout stderr -> IO a)
+             -> IO a
+withProcess_ config = bracket
     (startProcess config)
     (\p -> stopProcess p `finally` checkExitCode p)
 
