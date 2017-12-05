@@ -1,5 +1,5 @@
 name:        typed-process
-version:     0.1.1
+version:     0.2.0.0
 synopsis:    Run external processes, with strong typing of streams
 description: Please see the tutorial at <https://haskell-lang.org/library/typed-process>
 category:    System
@@ -17,8 +17,6 @@ dependencies:
 - base >=4.7 && <5
 - async
 - bytestring
-- conduit
-- conduit-extra
 - exceptions
 - process >=1.2
 - stm
@@ -41,6 +39,5 @@ tests:
     dependencies:
     - base64-bytestring
     - hspec
-    - http-conduit >=2.1.10
     - temporary
     - typed-process

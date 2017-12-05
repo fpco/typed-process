@@ -1,3 +1,8 @@
+## 0.2.0.0
+
+* Remove dependency on `conduit` and `conduit-extra`. Relevant code added to
+  `Data.Conduit.Process.Typed` in `conduit-extra-1.2.1`.
+
 ## 0.1.1
 
 * Introduce 'unsafeProcessHandle' function

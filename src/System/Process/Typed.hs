@@ -48,10 +48,6 @@ module System.Process.Typed
     , useHandleOpen
     , useHandleClose
 
-      -- ** Conduit
-    , createSink
-    , createSource
-
       -- * Launch a process
     , startProcess
     , stopProcess
@@ -99,9 +95,6 @@ import System.Exit (ExitCode (ExitSuccess))
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as L8
 import Data.String (IsString (fromString))
-import Data.Conduit (ConduitM)
-import qualified Data.Conduit as C
-import qualified Data.Conduit.Binary as CB
 
 #if MIN_VERSION_process(1, 4, 0) && !WINDOWS
 import System.Posix.Types (GroupID, UserID)
@@ -537,22 +530,6 @@ useHandleOpen h = mkStreamSpec (P.UseHandle h) $ \_ Nothing -> return ((), retur
 -- @since 0.1.0.0
 useHandleClose :: Handle -> StreamSpec anyStreamType ()
 useHandleClose h = mkStreamSpec (P.UseHandle h) $ \_ Nothing -> return ((), hClose h)
-
--- | Provide input to a process by writing to a conduit.
---
--- @since 0.1.0.0
-createSink :: MonadIO m => StreamSpec 'STInput (ConduitM S.ByteString o m ())
-createSink =
-    (\h -> C.addCleanup (\_ -> liftIO $ hClose h) (CB.sinkHandle h))
-    <$> createPipe
-
--- | Read output from a process by read from a conduit.
---
--- @since 0.1.0.0
-createSource :: MonadIO m => StreamSpec 'STOutput (ConduitM i S.ByteString m ())
-createSource =
-    (\h -> C.addCleanup (\_ -> liftIO $ hClose h) (CB.sourceHandle h))
-    <$> createPipe
 
 -- | Launch a process based on the given 'ProcessConfig'. You should
 -- ensure that you close 'stopProcess' on the result. It's usually
