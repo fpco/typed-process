@@ -65,6 +65,10 @@ module System.Process.Typed
     , readProcess_
     , runProcess
     , runProcess_
+    , readProcessStdout
+    , readProcessStdout_
+    , readProcessStderr
+    , readProcessStderr_
 
       -- * Interact with a process
 
@@ -690,6 +694,70 @@ readProcess_ pc =
   where
     pc' = setStdout byteStringOutput
         $ setStderr byteStringOutput pc
+
+-- | Same as 'readProcess', but only read the stdout of the process. Original settings for stderr remain.
+--
+-- @since 0.2.1.0
+readProcessStdout
+  :: MonadIO m
+  => ProcessConfig stdin stdoutIgnored stderr
+  -> m (ExitCode, L.ByteString)
+readProcessStdout pc =
+    liftIO $ withProcess pc' $ \p -> atomically $ (,)
+        <$> waitExitCodeSTM p
+        <*> getStdout p
+  where
+    pc' = setStdout byteStringOutput pc
+
+-- | Same as 'readProcessStdout', but instead of returning the
+-- 'ExitCode', checks it with 'checkExitCode'.
+--
+-- @since 0.2.1.0
+readProcessStdout_
+  :: MonadIO m
+  => ProcessConfig stdin stdoutIgnored stderr
+  -> m L.ByteString
+readProcessStdout_ pc =
+    liftIO $ withProcess pc' $ \p -> atomically $ do
+        stdout <- getStdout p
+        checkExitCodeSTM p `catchSTM` \ece -> throwSTM ece
+            { eceStdout = stdout
+            }
+        return stdout
+  where
+    pc' = setStdout byteStringOutput pc
+
+-- | Same as 'readProcess', but only read the stderr of the process. Original settings for stderr remain.
+--
+-- @since 0.2.1.0
+readProcessStderr
+  :: MonadIO m
+  => ProcessConfig stdin stderrIgnored stderr
+  -> m (ExitCode, L.ByteString)
+readProcessStderr pc =
+    liftIO $ withProcess pc' $ \p -> atomically $ (,)
+        <$> waitExitCodeSTM p
+        <*> getStderr p
+  where
+    pc' = setStderr byteStringOutput pc
+
+-- | Same as 'readProcessStderr', but instead of returning the
+-- 'ExitCode', checks it with 'checkExitCode'.
+--
+-- @since 0.2.1.0
+readProcessStderr_
+  :: MonadIO m
+  => ProcessConfig stdin stderrIgnored stderr
+  -> m L.ByteString
+readProcessStderr_ pc =
+    liftIO $ withProcess pc' $ \p -> atomically $ do
+        stderr <- getStderr p
+        checkExitCodeSTM p `catchSTM` \ece -> throwSTM ece
+            { eceStderr = stderr
+            }
+        return stderr
+  where
+    pc' = setStderr byteStringOutput pc
 
 -- | Run the given process, wait for it to exit, and returns its
 -- 'ExitCode'.

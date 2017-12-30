@@ -1,3 +1,7 @@
+## 0.2.1.0
+
+* Add `readProcessStdout`, `readProcessStdout_`, `readProcessStderr`, and `readProcessStderr_`
+
 ## 0.2.0.0
 
 * Remove dependency on `conduit` and `conduit-extra`. Relevant code added to
