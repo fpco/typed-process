@@ -866,7 +866,9 @@ instance Show ExitCodeException where
         [ "Received "
         , show (eceExitCode ece)
         , " when running\n"
-        , show (eceProcessConfig ece)
+        -- Too much output for an exception if we show the modified
+        -- environment, so hide it
+        , show (eceProcessConfig ece) { pcEnv = Nothing }
         , if L.null (eceStdout ece)
             then ""
             else "Standard output:\n\n" ++ L8.unpack (eceStdout ece)

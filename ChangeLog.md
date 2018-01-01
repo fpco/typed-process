@@ -1,6 +1,7 @@
 ## 0.2.1.0
 
 * Add `readProcessStdout`, `readProcessStdout_`, `readProcessStderr`, and `readProcessStderr_`
+* Do not show modified environment information in exceptions
 
 ## 0.2.0.0
 
