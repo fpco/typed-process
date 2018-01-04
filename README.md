@@ -23,7 +23,7 @@ intends to improve upon it by:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.IO (hPutStr, hClose)
 import System.Process.Typed
@@ -79,7 +79,7 @@ are simply to spell things out, they are not needed.)
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -107,7 +107,7 @@ pattern and is exception safe:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -123,7 +123,7 @@ its own:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -138,8 +138,8 @@ below.
 
 ## Type parameters
 
-Both `ProcessConfig` and `Process` each take three type parameters,
-with the type of the standard input, output, and error streams for the
+Both `ProcessConfig` and `Process` take three type parameters:
+the types of the standard input, output, and error streams for the
 process. As you saw above, our default is `()` for each, and our
 default behavior is to inherit the streams from the parent
 process. This is why, when you run the previous programs, the `date`
@@ -151,7 +151,7 @@ it at all.
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -183,7 +183,7 @@ system's shell.
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -214,7 +214,7 @@ exit-code-checking function.
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -228,7 +228,7 @@ anything but success. Want to see it in action?
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -241,7 +241,7 @@ function. We can do this more explicitly if desired:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -259,7 +259,7 @@ that:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 import System.Exit (ExitCode)
@@ -285,7 +285,7 @@ Like `runProcess`, there's an exit-code-checking variant of
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 import Data.ByteString.Lazy (ByteString)
@@ -306,15 +306,15 @@ Another technique we'll commonly want to employ is to redirect output
 from a process to a file. This is superior to the memory approach as
 it does not have the risk of using large amounts of memory, though it
 is more inconvenient. Together with the
-[temporary library](https://www.stackage.org/package/temporary), we
+[`UnliftIO.Temporary`](https://www.stackage.org/haddock/lts-10.2/unliftio-0.2.2.0/UnliftIO-Temporary.html), we
 can do some nice things:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process --package temporary
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
-import System.IO.Temp (withSystemTempFile)
+import UnliftIO.Temporary (withSystemTempFile)
 
 main :: IO ()
 main = withSystemTempFile "date" $ \fp h -> do
@@ -335,11 +335,11 @@ of multiple processes to a single file, you can instead use
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process --package temporary
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 import System.IO (hClose)
-import System.IO.Temp (withSystemTempFile)
+import UnliftIO.Temporary (withSystemTempFile)
 import Control.Monad (replicateM_)
 
 main :: IO ()
@@ -365,7 +365,7 @@ process:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process --package temporary
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -377,7 +377,7 @@ This is just a shortcut for using the `byteStringInput` function:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process --package temporary
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -390,11 +390,11 @@ file:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process --package temporary
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 import System.IO
-import System.IO.Temp (withSystemTempFile)
+import UnliftIO.Temporary (withSystemTempFile)
 
 main :: IO ()
 main = withSystemTempFile "input" $ \fp h -> do
@@ -416,7 +416,7 @@ For this, using `createPipe` makes a lot of sense:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 import System.IO
@@ -443,13 +443,14 @@ Hint: what happens if you both remove `hClose` _and_ replace
 ## Other settings
 
 We've so far only played with modifying streams, but there are a
-number of other settings you can tweak. It's best to just look at the
-API docs for all available functions. We'll give examples of the two
-most common settings: the working directory and environment variables.
+number of other settings you can tweak. It's best to just
+[look at the API docs](https://www.stackage.org/package/typed-process)
+for all available functions. We'll give examples of the two most
+common settings: the working directory and environment variables.
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-7.3 --install-ghc runghc --package typed-process
+-- stack --resolver lts-10.2 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
