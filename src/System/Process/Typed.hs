@@ -768,7 +768,8 @@ runProcess :: MonadIO m
            -> m ExitCode
 runProcess pc = liftIO $ withProcess pc waitExitCode
 
--- | Same as 'runProcess', but ignores the 'ExitCode'.
+-- | Same as 'runProcess', but instead of returning the
+-- 'ExitCode', checks it with 'checkExitCode'.
 --
 -- @since 0.1.0.0
 runProcess_ :: MonadIO m
