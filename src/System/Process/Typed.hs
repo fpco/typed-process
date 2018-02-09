@@ -630,7 +630,7 @@ stopProcess :: MonadIO m
             -> m ()
 stopProcess = liftIO . pCleanup
 
--- | Use the bracket pattern to call 'startProcess' and ensure
+-- | Uses the bracket pattern to call 'startProcess' and ensures that
 -- 'stopProcess' is called.
 --
 -- In version 0.2.0.0, this function was monomorphized to @IO@ to
