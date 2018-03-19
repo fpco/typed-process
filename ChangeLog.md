@@ -1,3 +1,7 @@
+## 0.2.2.0
+
+* Add inherit versions of setter functions
+
 ## 0.2.1.0
 
 * Add `readProcessStdout`, `readProcessStdout_`, `readProcessStderr`, and `readProcessStderr_`

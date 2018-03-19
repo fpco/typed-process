@@ -32,7 +32,9 @@ module System.Process.Typed
     , setStdout
     , setStderr
     , setWorkingDir
+    , setWorkingDirInherit
     , setEnv
+    , setEnvInherit
     , setCloseFds
     , setCreateGroup
     , setDelegateCtlc
@@ -43,7 +45,9 @@ module System.Process.Typed
 #endif
 #if MIN_VERSION_process(1, 4, 0) && !WINDOWS
     , setChildGroup
+    , setChildGroupInherit
     , setChildUser
+    , setChildUserInherit
 #endif
 
       -- * Stream specs
@@ -336,6 +340,14 @@ setWorkingDir :: FilePath
               -> ProcessConfig stdin stdout stderr
 setWorkingDir dir pc = pc { pcWorkingDir = Just dir }
 
+-- | Inherit the working directory from the parent process.
+--
+-- @since 0.2.2.0
+setWorkingDirInherit
+  :: ProcessConfig stdin stdout stderr
+  -> ProcessConfig stdin stdout stderr
+setWorkingDirInherit pc = pc { pcWorkingDir = Nothing }
+
 -- | Set the environment variables of the child process.
 --
 -- Default: current process's environment.
@@ -345,6 +357,14 @@ setEnv :: [(String, String)]
        -> ProcessConfig stdin stdout stderr
        -> ProcessConfig stdin stdout stderr
 setEnv env pc = pc { pcEnv = Just env }
+
+-- | Inherit the environment variables from the parent process.
+--
+-- @since 0.2.2.0
+setEnvInherit
+  :: ProcessConfig stdin stdout stderr
+  -> ProcessConfig stdin stdout stderr
+setEnvInherit pc = pc { pcEnv = Nothing }
 
 -- | Should we close all file descriptors besides stdin, stdout, and
 -- stderr? See 'P.close_fds' for more information.
@@ -431,6 +451,14 @@ setChildGroup
     -> ProcessConfig stdin stdout stderr
 setChildGroup x pc = pc { pcChildGroup = Just x }
 
+-- | Inherit the group from the parent process.
+--
+-- @since 0.2.2.0
+setChildGroupInherit
+  :: ProcessConfig stdin stdout stderr
+  -> ProcessConfig stdin stdout stderr
+setChildGroupInherit pc = pc { pcChildGroup = Nothing }
+
 -- | Set the child process's user ID with the POSIX @setuid@ syscall,
 -- does nothing on non-POSIX. See 'P.child_user'.
 --
@@ -442,6 +470,14 @@ setChildUser
     -> ProcessConfig stdin stdout stderr
     -> ProcessConfig stdin stdout stderr
 setChildUser x pc = pc { pcChildUser = Just x }
+
+-- | Inherit the user from the parent process.
+--
+-- @since 0.2.2.0
+setChildUserInherit
+  :: ProcessConfig stdin stdout stderr
+  -> ProcessConfig stdin stdout stderr
+setChildUserInherit pc = pc { pcChildUser = Nothing }
 #endif
 
 -- | Create a new 'StreamSpec' from the given 'P.StdStream' and a
