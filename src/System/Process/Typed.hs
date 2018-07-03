@@ -6,15 +6,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-|
-Please see the README.md file for examples of using this API.
-
-__Applications using this library MUST use @-threaded@__ to link with the
-threaded version of the RTS. 'spawnProcess' and the others spawn a Haskell
-thread that blocks until the process exits. Without @-threaded@ this will block
-/all/ the Haskell threads in your program until the spawned process exits.
-
--}
+-- | Please see the README.md file for examples of using this API.
 module System.Process.Typed
     ( -- * Types
       ProcessConfig
@@ -104,6 +96,7 @@ import Control.Monad.IO.Class
 import qualified System.Process as P
 import Data.Typeable (Typeable)
 import System.IO (Handle, hClose)
+import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (async, cancel, waitCatch)
 import Control.Concurrent.STM (newEmptyTMVarIO, atomically, putTMVar, TMVar, readTMVar, tryReadTMVar, STM, tryPutTMVar, throwSTM, catchSTM)
 import System.Exit (ExitCode (ExitSuccess))
@@ -624,7 +617,17 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
 
     pExitCode <- newEmptyTMVarIO
     waitingThread <- async $ do
-        ec <- P.waitForProcess pHandle
+        ec <-
+          if multiThreadedRuntime
+            then P.waitForProcess pHandle
+            else
+              let loop = do
+                    threadDelay 20000
+                    mec <- P.getProcessExitCode pHandle
+                    case mec of
+                      Nothing -> loop
+                      Just ec -> pure ec
+               in loop
         atomically $ putTMVar pExitCode ec
         return ec
 
@@ -653,6 +656,9 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
     return Process {..}
   where
     pConfig = clearStreams pConfig'
+
+foreign import ccall unsafe "rtsSupportsBoundThreads"
+  multiThreadedRuntime :: Bool
 
 -- | Close a process and release any resources acquired. This will
 -- ensure 'P.terminateProcess' is called, wait for the process to

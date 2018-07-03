@@ -1,5 +1,5 @@
 name:        typed-process
-version:     0.2.2.0
+version:     0.2.3.0
 synopsis:    Run external processes, with strong typing of streams
 description: Please see the tutorial at <https://haskell-lang.org/library/typed-process>
 category:    System
@@ -35,6 +35,14 @@ tests:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    dependencies:
+    - base64-bytestring
+    - hspec
+    - temporary
+    - typed-process
+  typed-process-test-single-threaded:
+    main: Spec.hs
+    source-dirs: test
     dependencies:
     - base64-bytestring
     - hspec
