@@ -90,12 +90,13 @@ module System.Process.Typed
 
 import qualified Data.ByteString as S
 import Data.ByteString.Lazy.Internal (defaultChunkSize)
-import Control.Exception (assert, evaluate, throwIO, Exception, SomeException, finally, bracket, onException, catch)
+import Control.Exception (assert, evaluate, throwIO, Exception, SomeException, finally, bracket, onException, catch, try)
 import Control.Monad (void)
 import Control.Monad.IO.Class
 import qualified System.Process as P
 import Data.Typeable (Typeable)
 import System.IO (Handle, hClose)
+import System.IO.Error (isPermissionError)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (async, cancel, waitCatch)
 import Control.Concurrent.STM (newEmptyTMVarIO, atomically, putTMVar, TMVar, readTMVar, tryReadTMVar, STM, tryPutTMVar, throwSTM, catchSTM)
@@ -648,8 +649,25 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
                 -- Process didn't exit yet, let's terminate it and
                 -- then call waitForProcess ourselves
                 Left _ -> do
-                    P.terminateProcess pHandle
-                    ec <- P.waitForProcess pHandle
+                    eres <- try $ P.terminateProcess pHandle
+                    ec <-
+                      case eres of
+                        Left e
+                          -- On Windows, with the single-threaded runtime, it
+                          -- seems that if a process has already exited, the
+                          -- call to terminateProcess will fail with a
+                          -- permission denied error. To work around this, we
+                          -- catch this exception and then immediately
+                          -- waitForProcess. There's a chance that there may be
+                          -- other reasons for this permission error to appear,
+                          -- in which case this code may allow us to wait too
+                          -- long for a child process instead of erroring out.
+                          -- Recommendation: always use the multi-threaded
+                          -- runtime!
+                          | isPermissionError e && not multiThreadedRuntime && isWindows ->
+                            P.waitForProcess pHandle
+                          | otherwise -> throwIO e
+                        Right () -> P.waitForProcess pHandle
                     success <- atomically $ tryPutTMVar pExitCode ec
                     evaluate $ assert success ()
 
@@ -659,6 +677,13 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
 
 foreign import ccall unsafe "rtsSupportsBoundThreads"
   multiThreadedRuntime :: Bool
+
+isWindows :: Bool
+#if WINDOWS
+isWindows = True
+#else
+isWindows = False
+#endif
 
 -- | Close a process and release any resources acquired. This will
 -- ensure 'P.terminateProcess' is called, wait for the process to
