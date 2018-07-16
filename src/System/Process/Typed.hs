@@ -625,14 +625,15 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
             else do
               switchTime <- (fromIntegral . (`div` 1000) . ctxtSwitchTime)
                         <$> getConcFlags
-              let loop delay = do
-                    let delay' = min switchTime (delay * 2)
-                    threadDelay delay'
+              let minDelay = 1
+                  maxDelay = max minDelay switchTime
+                  loop delay = do
+                    threadDelay delay
                     mec <- P.getProcessExitCode pHandle
                     case mec of
-                      Nothing -> loop delay'
+                      Nothing -> loop $ min maxDelay (delay * 2)
                       Just ec -> pure ec
-              loop 1000
+              loop minDelay
         atomically $ putTMVar pExitCode ec
         return ec
 
