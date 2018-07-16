@@ -104,6 +104,7 @@ import System.Exit (ExitCode (ExitSuccess))
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as L8
 import Data.String (IsString (fromString))
+import GHC.RTS.Flags (getConcFlags, ctxtSwitchTime)
 
 #if MIN_VERSION_process(1, 4, 0) && !WINDOWS
 import System.Posix.Types (GroupID, UserID)
@@ -621,14 +622,17 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
         ec <-
           if multiThreadedRuntime
             then P.waitForProcess pHandle
-            else
-              let loop = do
-                    threadDelay 20000
+            else do
+              switchTime <- (fromIntegral . (`div` 1000) . ctxtSwitchTime)
+                        <$> getConcFlags
+              let loop delay = do
+                    let delay' = min switchTime (delay * 2)
+                    threadDelay delay'
                     mec <- P.getProcessExitCode pHandle
                     case mec of
-                      Nothing -> loop
+                      Nothing -> loop delay'
                       Just ec -> pure ec
-               in loop
+              loop 1000
         atomically $ putTMVar pExitCode ec
         return ec
 
