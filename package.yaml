@@ -14,7 +14,7 @@ extra-source-files:
 - ChangeLog.md
 
 dependencies:
-- base >=4.7 && <5
+- base >=4.8.2 && <5
 - async
 - bytestring
 - process >=1.2
