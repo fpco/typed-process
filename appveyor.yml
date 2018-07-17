@@ -14,8 +14,11 @@ environment:
 
   matrix:
   - ARGS: ""
+  # Unsupported GHC version
   #- ARGS: "--resolver lts-2"
-  - ARGS: "--resolver lts-3"
+
+  # Compiler does not work on AppVeyor
+  #- ARGS: "--resolver lts-3"
   - ARGS: "--resolver lts-6"
   - ARGS: "--resolver lts-7"
   - ARGS: "--resolver lts-9"
