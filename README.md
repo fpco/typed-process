@@ -19,6 +19,12 @@ intends to improve upon it by:
 5. Providing a more composable API, designed to be easy to use for
    both simple and complex use cases
 
+__NOTE__ It's highly recommended that you compile any program using this
+library with the multi-threaded runtime, usually by adding `ghc-options:
+-threaded` to your executable stanza in your cabal or `package.yaml` file. The
+single-threaded runtime necessitates some inefficient polling to be used under
+the surface.
+
 ## Synopsis
 
 ```haskell

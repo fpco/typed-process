@@ -6,15 +6,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-|
-Please see the README.md file for examples of using this API.
-
-__Applications using this library MUST use @-threaded@__ to link with the
-threaded version of the RTS. 'spawnProcess' and the others spawn a Haskell
-thread that blocks until the process exits. Without @-threaded@ this will block
-/all/ the Haskell threads in your program until the spawned process exits.
-
--}
+-- | Please see the README.md file for examples of using this API.
 module System.Process.Typed
     ( -- * Types
       ProcessConfig
@@ -98,18 +90,21 @@ module System.Process.Typed
 
 import qualified Data.ByteString as S
 import Data.ByteString.Lazy.Internal (defaultChunkSize)
-import Control.Exception (assert, evaluate, throwIO, Exception, SomeException, finally, bracket, onException, catch)
+import Control.Exception (assert, evaluate, throwIO, Exception, SomeException, finally, bracket, onException, catch, try)
 import Control.Monad (void)
 import Control.Monad.IO.Class
 import qualified System.Process as P
 import Data.Typeable (Typeable)
 import System.IO (Handle, hClose)
+import System.IO.Error (isPermissionError)
+import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (async, cancel, waitCatch)
 import Control.Concurrent.STM (newEmptyTMVarIO, atomically, putTMVar, TMVar, readTMVar, tryReadTMVar, STM, tryPutTMVar, throwSTM, catchSTM)
 import System.Exit (ExitCode (ExitSuccess))
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as L8
 import Data.String (IsString (fromString))
+import GHC.RTS.Flags (getConcFlags, ctxtSwitchTime)
 
 #if MIN_VERSION_process(1, 4, 0) && !WINDOWS
 import System.Posix.Types (GroupID, UserID)
@@ -624,7 +619,21 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
 
     pExitCode <- newEmptyTMVarIO
     waitingThread <- async $ do
-        ec <- P.waitForProcess pHandle
+        ec <-
+          if multiThreadedRuntime
+            then P.waitForProcess pHandle
+            else do
+              switchTime <- (fromIntegral . (`div` 1000) . ctxtSwitchTime)
+                        <$> getConcFlags
+              let minDelay = 1
+                  maxDelay = max minDelay switchTime
+                  loop delay = do
+                    threadDelay delay
+                    mec <- P.getProcessExitCode pHandle
+                    case mec of
+                      Nothing -> loop $ min maxDelay (delay * 2)
+                      Just ec -> pure ec
+              loop minDelay
         atomically $ putTMVar pExitCode ec
         return ec
 
@@ -645,14 +654,41 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
                 -- Process didn't exit yet, let's terminate it and
                 -- then call waitForProcess ourselves
                 Left _ -> do
-                    P.terminateProcess pHandle
-                    ec <- P.waitForProcess pHandle
+                    eres <- try $ P.terminateProcess pHandle
+                    ec <-
+                      case eres of
+                        Left e
+                          -- On Windows, with the single-threaded runtime, it
+                          -- seems that if a process has already exited, the
+                          -- call to terminateProcess will fail with a
+                          -- permission denied error. To work around this, we
+                          -- catch this exception and then immediately
+                          -- waitForProcess. There's a chance that there may be
+                          -- other reasons for this permission error to appear,
+                          -- in which case this code may allow us to wait too
+                          -- long for a child process instead of erroring out.
+                          -- Recommendation: always use the multi-threaded
+                          -- runtime!
+                          | isPermissionError e && not multiThreadedRuntime && isWindows ->
+                            P.waitForProcess pHandle
+                          | otherwise -> throwIO e
+                        Right () -> P.waitForProcess pHandle
                     success <- atomically $ tryPutTMVar pExitCode ec
                     evaluate $ assert success ()
 
     return Process {..}
   where
     pConfig = clearStreams pConfig'
+
+foreign import ccall unsafe "rtsSupportsBoundThreads"
+  multiThreadedRuntime :: Bool
+
+isWindows :: Bool
+#if WINDOWS
+isWindows = True
+#else
+isWindows = False
+#endif
 
 -- | Close a process and release any resources acquired. This will
 -- ensure 'P.terminateProcess' is called, wait for the process to

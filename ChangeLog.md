@@ -1,3 +1,7 @@
+## 0.2.3.0
+
+* Add support for the single-threaded runtime via polling
+
 ## 0.2.2.0
 
 * Add inherit versions of setter functions
