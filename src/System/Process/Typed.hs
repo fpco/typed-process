@@ -799,12 +799,13 @@ readProcessStdout_ pc =
   where
     pc' = setStdout byteStringOutput pc
 
--- | Same as 'readProcess', but only read the stderr of the process. Original settings for stderr remain.
+-- | Same as 'readProcess', but only read the stderr of the process.
+-- Original settings for stdout remain.
 --
 -- @since 0.2.1.0
 readProcessStderr
   :: MonadIO m
-  => ProcessConfig stdin stderrIgnored stderr
+  => ProcessConfig stdin stdout stderrIgnored
   -> m (ExitCode, L.ByteString)
 readProcessStderr pc =
     liftIO $ withProcess pc' $ \p -> atomically $ (,)
@@ -819,7 +820,7 @@ readProcessStderr pc =
 -- @since 0.2.1.0
 readProcessStderr_
   :: MonadIO m
-  => ProcessConfig stdin stderrIgnored stderr
+  => ProcessConfig stdin stdout stderrIgnored
   -> m L.ByteString
 readProcessStderr_ pc =
     liftIO $ withProcess pc' $ \p -> atomically $ do
