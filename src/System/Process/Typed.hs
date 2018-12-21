@@ -65,6 +65,8 @@ module System.Process.Typed
     , readProcessStdout_
     , readProcessStderr
     , readProcessStderr_
+    , readProcessInterleaved
+    , readProcessInterleaved_
 
       -- * Interact with a process
 
@@ -95,7 +97,7 @@ import Control.Monad (void)
 import Control.Monad.IO.Class
 import qualified System.Process as P
 import Data.Typeable (Typeable)
-import System.IO (Handle, hClose)
+import System.IO (Handle, hClose, stdout)
 import System.IO.Error (isPermissionError)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (async, cancel, waitCatch)
@@ -831,6 +833,62 @@ readProcessStderr_ pc =
         return stderr
   where
     pc' = setStderr byteStringOutput pc
+
+-- | Same as 'readProcess', but interleaves stderr with stdout.
+--
+-- Motivation: Use this function if you need stdout interleaved with stderr
+-- output (e.g. from an HTTP server) in order to debug failures.
+--
+-- @since 0.2.4.0
+readProcessInterleaved
+  :: MonadIO m
+  => ProcessConfig stdin stdoutIgnored stderrIgnored
+  -> m (ExitCode, L.ByteString)
+readProcessInterleaved pc = do
+  (readEnd, writeEnd) <- liftIO P.createPipe
+  let pc' = setStdin closed
+          $ setStderr (useHandleOpen writeEnd)
+          $ setStdout (useHandleOpen writeEnd) pc
+  liftIO $ withProcess pc' $ \p -> do
+    out <- readHandle (pConfig p) readEnd >>= atomically
+    exit <- atomically $ waitExitCodeSTM p
+    pure (exit, out)
+
+-- | Same as 'readProcessInterleaved', but instead of returning the 'ExitCode',
+-- checks it with 'checkExitCode'.
+--
+-- @since 0.2.4.0
+readProcessInterleaved_
+  :: MonadIO m
+  => ProcessConfig stdin stdoutIgnored stderrIgnored
+  -> m L.ByteString
+readProcessInterleaved_ pc = do
+    (readEnd, writeEnd) <- liftIO P.createPipe
+    let pc' = setStdout (useHandleOpen writeEnd)
+              $ setStderr (useHandleOpen writeEnd)
+              $ setStdin closed pc
+    liftIO $ withProcess pc' $ \p -> do
+        stdout' <- readHandle (pConfig p) readEnd >>= atomically
+        atomically $ checkExitCodeSTM p `catchSTM` \ece -> throwSTM ece
+            { eceStderr = stdout'
+            }
+        return stdout'
+
+readHandle :: ProcessConfig () () () -> Handle -> IO (STM L.ByteString)
+readHandle pc h = do
+    mvar <- newEmptyTMVarIO
+
+    void $ async $ do
+        let loop front = do
+                bs <- S.hGetSome h defaultChunkSize
+                if S.null bs
+                    then atomically $ putTMVar mvar $ Right $ L.fromChunks $ front []
+                    else loop $ front . (bs:)
+        loop id `catch` \e -> do
+            atomically $ void $ tryPutTMVar mvar $ Left $ ByteStringOutputException e pc
+            throwIO e
+    return (readTMVar mvar >>= either throwSTM pure)
+
 
 -- | Run the given process, wait for it to exit, and returns its
 -- 'ExitCode'.
