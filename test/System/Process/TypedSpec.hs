@@ -109,5 +109,10 @@ spec = do
         hClose h
 
         let config = proc "sh" [fp]
-        (result, lbs) <- readProcessInterleaved config
-        lbs `shouldBe` "stdout\nstderr\nstdout\n"
+        (result, lbs1) <- readProcessInterleaved config
+        result `shouldBe` ExitSuccess
+        lbs2 <- readProcessInterleaved_ config
+        lbs1 `shouldBe` lbs2
+
+        let expected = "stdout\nstderr\nstdout\n"
+        L.take (L.length expected) lbs1 `shouldBe` expected

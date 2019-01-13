@@ -97,7 +97,7 @@ import Control.Monad (void)
 import Control.Monad.IO.Class
 import qualified System.Process as P
 import Data.Typeable (Typeable)
-import System.IO (Handle, hClose, stdout)
+import System.IO (Handle, hClose)
 import System.IO.Error (isPermissionError)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (async, cancel, waitCatch)
@@ -536,7 +536,18 @@ byteStringInput lbs = mkStreamSpec P.CreatePipe $ \_ (Just h) -> do
 --
 -- @since 0.1.0.0
 byteStringOutput :: StreamSpec 'STOutput (STM L.ByteString)
-byteStringOutput = mkStreamSpec P.CreatePipe $ \pc (Just h) -> do
+byteStringOutput = mkStreamSpec P.CreatePipe $ \pc (Just h) -> byteStringFromHandle pc h
+
+-- | Helper function (not exposed) for both 'byteStringOutput' and
+-- 'withProcessInterleave'. This will consume all of the output from
+-- the given 'Handle' in a separate thread and provide access to the
+-- resulting 'L.ByteString' via STM. Second action will close the
+-- reader handle.
+byteStringFromHandle
+  :: ProcessConfig () () ()
+  -> Handle -- ^ reader handle
+  -> IO (STM L.ByteString, IO ())
+byteStringFromHandle pc h = do
     mvar <- newEmptyTMVarIO
 
     void $ async $ do
@@ -834,6 +845,26 @@ readProcessStderr_ pc =
   where
     pc' = setStderr byteStringOutput pc
 
+withProcessInterleave
+  :: ProcessConfig stdin stdoutIgnored stderrIgnored
+  -> (Process stdin (STM L.ByteString) () -> IO a)
+  -> IO a
+withProcessInterleave pc inner = do
+    -- Create a pipe to be shared for both stdout and stderr
+    (readEnd, writeEnd) <- P.createPipe
+
+    -- Use the writer end of the pipe for both stdout and stderr. For
+    -- the stdout half, use byteStringFromHandle to read the data into
+    -- a lazy ByteString in memory.
+    let pc' = setStdout (mkStreamSpec (P.UseHandle writeEnd) (\pc'' Nothing -> byteStringFromHandle pc'' readEnd))
+            $ setStderr (useHandleOpen writeEnd)
+              pc
+    withProcess pc' $ \p -> do
+      -- Now that the process is forked, close the writer end of this
+      -- pipe, otherwise the reader end will never give an EOF.
+      hClose writeEnd
+      inner p
+
 -- | Same as 'readProcess', but interleaves stderr with stdout.
 --
 -- Motivation: Use this function if you need stdout interleaved with stderr
@@ -844,15 +875,12 @@ readProcessInterleaved
   :: MonadIO m
   => ProcessConfig stdin stdoutIgnored stderrIgnored
   -> m (ExitCode, L.ByteString)
-readProcessInterleaved pc = do
-  (readEnd, writeEnd) <- liftIO P.createPipe
-  let pc' = setStdin closed
-          $ setStderr (useHandleOpen writeEnd)
-          $ setStdout (useHandleOpen writeEnd) pc
-  liftIO $ withProcess pc' $ \p -> do
-    out <- readHandle (pConfig p) readEnd >>= atomically
-    exit <- atomically $ waitExitCodeSTM p
-    pure (exit, out)
+readProcessInterleaved pc =
+    liftIO $
+    withProcessInterleave pc $ \p ->
+    atomically $ (,)
+      <$> waitExitCodeSTM p
+      <*> getStdout p
 
 -- | Same as 'readProcessInterleaved', but instead of returning the 'ExitCode',
 -- checks it with 'checkExitCode'.
@@ -862,33 +890,14 @@ readProcessInterleaved_
   :: MonadIO m
   => ProcessConfig stdin stdoutIgnored stderrIgnored
   -> m L.ByteString
-readProcessInterleaved_ pc = do
-    (readEnd, writeEnd) <- liftIO P.createPipe
-    let pc' = setStdout (useHandleOpen writeEnd)
-              $ setStderr (useHandleOpen writeEnd)
-              $ setStdin closed pc
-    liftIO $ withProcess pc' $ \p -> do
-        stdout' <- readHandle (pConfig p) readEnd >>= atomically
-        atomically $ checkExitCodeSTM p `catchSTM` \ece -> throwSTM ece
-            { eceStderr = stdout'
-            }
-        return stdout'
-
-readHandle :: ProcessConfig () () () -> Handle -> IO (STM L.ByteString)
-readHandle pc h = do
-    mvar <- newEmptyTMVarIO
-
-    void $ async $ do
-        let loop front = do
-                bs <- S.hGetSome h defaultChunkSize
-                if S.null bs
-                    then atomically $ putTMVar mvar $ Right $ L.fromChunks $ front []
-                    else loop $ front . (bs:)
-        loop id `catch` \e -> do
-            atomically $ void $ tryPutTMVar mvar $ Left $ ByteStringOutputException e pc
-            throwIO e
-    return (readTMVar mvar >>= either throwSTM pure)
-
+readProcessInterleaved_ pc =
+    liftIO $ do
+    withProcessInterleave pc $ \p -> atomically $ do
+      stdout' <- getStdout p
+      checkExitCodeSTM p `catchSTM` \ece -> throwSTM ece
+        { eceStdout = stdout'
+        }
+      return stdout'
 
 -- | Run the given process, wait for it to exit, and returns its
 -- 'ExitCode'.
