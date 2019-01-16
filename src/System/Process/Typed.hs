@@ -65,6 +65,8 @@ module System.Process.Typed
     , readProcessStdout_
     , readProcessStderr
     , readProcessStderr_
+    , readProcessInterleaved
+    , readProcessInterleaved_
 
       -- * Interact with a process
 
@@ -534,7 +536,18 @@ byteStringInput lbs = mkStreamSpec P.CreatePipe $ \_ (Just h) -> do
 --
 -- @since 0.1.0.0
 byteStringOutput :: StreamSpec 'STOutput (STM L.ByteString)
-byteStringOutput = mkStreamSpec P.CreatePipe $ \pc (Just h) -> do
+byteStringOutput = mkStreamSpec P.CreatePipe $ \pc (Just h) -> byteStringFromHandle pc h
+
+-- | Helper function (not exposed) for both 'byteStringOutput' and
+-- 'withProcessInterleave'. This will consume all of the output from
+-- the given 'Handle' in a separate thread and provide access to the
+-- resulting 'L.ByteString' via STM. Second action will close the
+-- reader handle.
+byteStringFromHandle
+  :: ProcessConfig () () ()
+  -> Handle -- ^ reader handle
+  -> IO (STM L.ByteString, IO ())
+byteStringFromHandle pc h = do
     mvar <- newEmptyTMVarIO
 
     void $ async $ do
@@ -831,6 +844,60 @@ readProcessStderr_ pc =
         return stderr
   where
     pc' = setStderr byteStringOutput pc
+
+withProcessInterleave
+  :: ProcessConfig stdin stdoutIgnored stderrIgnored
+  -> (Process stdin (STM L.ByteString) () -> IO a)
+  -> IO a
+withProcessInterleave pc inner = do
+    -- Create a pipe to be shared for both stdout and stderr
+    (readEnd, writeEnd) <- P.createPipe
+
+    -- Use the writer end of the pipe for both stdout and stderr. For
+    -- the stdout half, use byteStringFromHandle to read the data into
+    -- a lazy ByteString in memory.
+    let pc' = setStdout (mkStreamSpec (P.UseHandle writeEnd) (\pc'' Nothing -> byteStringFromHandle pc'' readEnd))
+            $ setStderr (useHandleOpen writeEnd)
+              pc
+    withProcess pc' $ \p -> do
+      -- Now that the process is forked, close the writer end of this
+      -- pipe, otherwise the reader end will never give an EOF.
+      hClose writeEnd
+      inner p
+
+-- | Same as 'readProcess', but interleaves stderr with stdout.
+--
+-- Motivation: Use this function if you need stdout interleaved with stderr
+-- output (e.g. from an HTTP server) in order to debug failures.
+--
+-- @since 0.2.4.0
+readProcessInterleaved
+  :: MonadIO m
+  => ProcessConfig stdin stdoutIgnored stderrIgnored
+  -> m (ExitCode, L.ByteString)
+readProcessInterleaved pc =
+    liftIO $
+    withProcessInterleave pc $ \p ->
+    atomically $ (,)
+      <$> waitExitCodeSTM p
+      <*> getStdout p
+
+-- | Same as 'readProcessInterleaved', but instead of returning the 'ExitCode',
+-- checks it with 'checkExitCode'.
+--
+-- @since 0.2.4.0
+readProcessInterleaved_
+  :: MonadIO m
+  => ProcessConfig stdin stdoutIgnored stderrIgnored
+  -> m L.ByteString
+readProcessInterleaved_ pc =
+    liftIO $ do
+    withProcessInterleave pc $ \p -> atomically $ do
+      stdout' <- getStdout p
+      checkExitCodeSTM p `catchSTM` \ece -> throwSTM ece
+        { eceStdout = stdout'
+        }
+      return stdout'
 
 -- | Run the given process, wait for it to exit, and returns its
 -- 'ExitCode'.

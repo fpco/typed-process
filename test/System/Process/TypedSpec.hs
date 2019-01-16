@@ -86,3 +86,33 @@ spec = do
         let encoded = S.filter (/= 10) $ L.toStrict lbs
         raw <- S.readFile fp
         encoded `shouldBe` B64.encode raw
+
+    it "interleaved output" $ withSystemTempFile "interleaved-output" $ \fp h -> do
+        S.hPut h "\necho 'stdout'\n>&2 echo 'stderr'\necho 'stdout'"
+        hClose h
+
+        let config = proc "sh" [fp]
+        -- Assert, that our bash script doesn't send output only to stdout and
+        -- we assume that we captured from stderr as well
+        onlyErr <- readProcessStderr_ (setStdout createPipe config)
+        onlyErr `shouldBe` "stderr\n"
+
+        (res, lbs1) <- readProcessInterleaved config
+        res `shouldBe` ExitSuccess
+        lbs1 `shouldBe` "stdout\nstderr\nstdout\n"
+
+        lbs2 <- readProcessInterleaved_ config
+        lbs1 `shouldBe` lbs2
+
+    it "interleaved output handles large data" $ withSystemTempFile "interleaved-output" $ \fp h -> do
+        S.hPut h "\nfor i in {1..4064}; do\necho 'stdout';\n>&2 echo 'stderr';\necho 'stdout';\ndone"
+        hClose h
+
+        let config = proc "sh" [fp]
+        (result, lbs1) <- readProcessInterleaved config
+        result `shouldBe` ExitSuccess
+        lbs2 <- readProcessInterleaved_ config
+        lbs1 `shouldBe` lbs2
+
+        let expected = "stdout\nstderr\nstdout\n"
+        L.take (L.length expected) lbs1 `shouldBe` expected

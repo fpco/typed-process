@@ -1,3 +1,8 @@
+## 0.2.4.0
+
+* Add `readProcessInterleaved` and `readProcessInterleaved_` to support
+  capturing output from stdout and stderr in a single ByteString value.
+
 ## 0.2.3.0
 
 * Add support for the single-threaded runtime via polling
