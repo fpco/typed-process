@@ -1,3 +1,12 @@
+# ChangeLog for typed-process
+
+## 0.2.5.0
+
+* When pipes are created for communications with a child process, they
+  are switched to `NoBuffering` mode to avoid inadvertent
+  blocking. See
+  [snoyberg/conduit#402](https://github.com/snoyberg/conduit/issues/402).
+
 ## 0.2.4.0
 
 * Add `readProcessInterleaved` and `readProcessInterleaved_` to support

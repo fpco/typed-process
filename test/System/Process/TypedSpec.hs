@@ -116,3 +116,14 @@ spec = do
 
         let expected = "stdout\nstderr\nstdout\n"
         L.take (L.length expected) lbs1 `shouldBe` expected
+
+    it "no buffering on handles snoyberg/conduit#402" $ do
+        let pc = setStdin createPipe
+               $ setStdout createPipe
+               $ setStderr createPipe
+               $ proc "cat" []
+        withProcess pc $ \p -> do
+            let test f = hGetBuffering (f p) `shouldReturn` NoBuffering
+            test getStdin
+            test getStdout
+            test getStderr

@@ -97,7 +97,7 @@ import Control.Monad (void)
 import Control.Monad.IO.Class
 import qualified System.Process as P
 import Data.Typeable (Typeable)
-import System.IO (Handle, hClose)
+import System.IO (Handle, hClose, hSetBuffering, BufferMode (NoBuffering))
 import System.IO.Error (isPermissionError)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (async, cancel, waitCatch)
@@ -567,7 +567,9 @@ byteStringFromHandle pc h = do
 --
 -- @since 0.1.0.0
 createPipe :: StreamSpec anyStreamType Handle
-createPipe = mkStreamSpec P.CreatePipe $ \_ (Just h) -> return (h, hClose h)
+createPipe = mkStreamSpec P.CreatePipe $ \_ (Just h) -> do
+  hSetBuffering h NoBuffering
+  return (h, hClose h)
 
 -- | Use the provided 'Handle' for the child process, and when the
 -- process exits, do /not/ close it. This is useful if, for example,
