@@ -762,6 +762,8 @@ readProcess pc =
 -- | Same as 'readProcess', but instead of returning the 'ExitCode',
 -- checks it with 'checkExitCode'.
 --
+-- Exceptions thrown by this function will include stdout and stderr.
+--
 -- @since 0.1.0.0
 readProcess_ :: MonadIO m
              => ProcessConfig stdin stdoutIgnored stderrIgnored
@@ -796,6 +798,8 @@ readProcessStdout pc =
 -- | Same as 'readProcessStdout', but instead of returning the
 -- 'ExitCode', checks it with 'checkExitCode'.
 --
+-- Exceptions thrown by this function will include stdout.
+--
 -- @since 0.2.1.0
 readProcessStdout_
   :: MonadIO m
@@ -828,6 +832,8 @@ readProcessStderr pc =
 
 -- | Same as 'readProcessStderr', but instead of returning the
 -- 'ExitCode', checks it with 'checkExitCode'.
+--
+-- Exceptions thrown by this function will include stderr.
 --
 -- @since 0.2.1.0
 readProcessStderr_
@@ -882,6 +888,8 @@ readProcessInterleaved pc =
 
 -- | Same as 'readProcessInterleaved', but instead of returning the 'ExitCode',
 -- checks it with 'checkExitCode'.
+--
+-- Exceptions thrown by this function will include stdout.
 --
 -- @since 0.2.4.0
 readProcessInterleaved_
@@ -942,6 +950,9 @@ getExitCodeSTM = tryReadTMVar . pExitCode
 -- | Wait for a process to exit, and ensure that it exited
 -- successfully. If not, throws an 'ExitCodeException'.
 --
+-- Exceptions thrown by this function will not include stdout or stderr (This prevents unbounded memory usage from reading them into memory).
+-- However, some callers such as 'readProcess_' catch the exception, add the stdout and stderr, and rethrow.
+--
 -- @since 0.1.0.0
 checkExitCode :: MonadIO m => Process stdin stdout stderr -> m ()
 checkExitCode = liftIO . atomically . checkExitCodeSTM
@@ -990,6 +1001,9 @@ getStderr = pStderr
 -- | Exception thrown by 'checkExitCode' in the event of a non-success
 -- exit code. Note that 'checkExitCode' is called by other functions
 -- as well, like 'runProcess_' or 'readProcess_'.
+--
+-- Note that several functions that throw an 'ExitCodeException' intentionally do not populate 'eceStdout' or 'eceStderr'.
+-- This prevents unbounded memory usage for large stdout and stderrs.
 --
 -- @since 0.1.0.0
 data ExitCodeException = ExitCodeException
