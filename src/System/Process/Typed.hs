@@ -848,21 +848,20 @@ withProcessInterleave
   :: ProcessConfig stdin stdoutIgnored stderrIgnored
   -> (Process stdin (STM L.ByteString) () -> IO a)
   -> IO a
-withProcessInterleave pc inner = do
+withProcessInterleave pc inner =
     -- Create a pipe to be shared for both stdout and stderr
-    (readEnd, writeEnd) <- P.createPipe
-
-    -- Use the writer end of the pipe for both stdout and stderr. For
-    -- the stdout half, use byteStringFromHandle to read the data into
-    -- a lazy ByteString in memory.
-    let pc' = setStdout (mkStreamSpec (P.UseHandle writeEnd) (\pc'' Nothing -> byteStringFromHandle pc'' readEnd))
-            $ setStderr (useHandleOpen writeEnd)
-              pc
-    withProcess pc' $ \p -> do
-      -- Now that the process is forked, close the writer end of this
-      -- pipe, otherwise the reader end will never give an EOF.
-      hClose writeEnd
-      inner p
+    bracket P.createPipe (\(r, w) -> hClose r >> hClose w) $ \(readEnd, writeEnd) -> do
+        -- Use the writer end of the pipe for both stdout and stderr. For
+        -- the stdout half, use byteStringFromHandle to read the data into
+        -- a lazy ByteString in memory.
+        let pc' = setStdout (mkStreamSpec (P.UseHandle writeEnd) (\pc'' Nothing -> byteStringFromHandle pc'' readEnd))
+                $ setStderr (useHandleOpen writeEnd)
+                  pc
+        withProcess pc' $ \p -> do
+          -- Now that the process is forked, close the writer end of this
+          -- pipe, otherwise the reader end will never give an EOF.
+          hClose writeEnd
+          inner p
 
 -- | Same as 'readProcess', but interleaves stderr with stdout.
 --

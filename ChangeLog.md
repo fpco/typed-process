@@ -1,3 +1,7 @@
+## 0.2.4.1
+
+* Fix a `Handle` leak in `withProcessInterleave` and its derivatives.
+
 ## 0.2.4.0
 
 * Add `readProcessInterleaved` and `readProcessInterleaved_` to support
