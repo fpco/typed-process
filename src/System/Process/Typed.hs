@@ -3,7 +3,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 -- | Please see the README.md file for examples of using this API.
@@ -507,7 +506,7 @@ closed :: StreamSpec anyStreamType ()
 #if MIN_VERSION_process(1, 4, 0)
 closed = mkStreamSpec P.NoStream (\_ Nothing -> pure ((), return ()))
 #else
-closed = mkStreamSpec P.CreatePipe (\_ (Just h) -> (((), return ()) <$ hClose h))
+closed = mkStreamSpec P.CreatePipe (\_ (Just h) -> ((), return ()) <$ hClose h)
 #endif
 
 -- | An input stream spec which sets the input to the given
@@ -636,7 +635,7 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
           if multiThreadedRuntime
             then P.waitForProcess pHandle
             else do
-              switchTime <- (fromIntegral . (`div` 1000) . ctxtSwitchTime)
+              switchTime <- fromIntegral . (`div` 1000) . ctxtSwitchTime
                         <$> getConcFlags
               let minDelay = 1
                   maxDelay = max minDelay switchTime
@@ -891,7 +890,7 @@ readProcessInterleaved_
   => ProcessConfig stdin stdoutIgnored stderrIgnored
   -> m L.ByteString
 readProcessInterleaved_ pc =
-    liftIO $ do
+    liftIO $
     withProcessInterleave pc $ \p -> atomically $ do
       stdout' <- getStdout p
       checkExitCodeSTM p `catchSTM` \ece -> throwSTM ece
