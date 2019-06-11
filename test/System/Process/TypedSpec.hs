@@ -3,6 +3,7 @@
 module System.Process.TypedSpec (spec) where
 
 import System.Process.Typed
+import System.Process.Typed.Internal
 import System.IO
 import Control.Concurrent.Async (Concurrently (..))
 import Control.Concurrent.STM (atomically)
@@ -21,11 +22,35 @@ import Control.Applicative ((*>))
 
 spec :: Spec
 spec = do
+    -- This is mainly to make sure we use the right device filename on Windows
+    it "Null device is accessible" $ do
+        withBinaryFile nullDevice WriteMode $ \fp -> do
+          hPutStrLn fp "Hello world"
+        withBinaryFile nullDevice ReadMode $ \fp -> do
+          atEnd <- hIsEOF fp
+          atEnd `shouldBe` True
+
     it "bytestring stdin" $ do
         let bs :: IsString s => s
             bs = "this is a test"
         res <- readProcess (setStdin bs "cat")
         res `shouldBe` (ExitSuccess, bs, "")
+
+    it "null stdin" $ do
+        res <- readProcess (setStdin nullStream "cat")
+        res `shouldBe` (ExitSuccess, "", "")
+
+    it "null stdout" $ do
+        -- In particular, writing to that doesn't terminate the process with an error
+        bs <- readProcessStderr_ $ setStdout nullStream $ setStdin nullStream $
+          proc "sh" ["-c", "echo hello; echo world >&2"]
+        bs `shouldBe` "world\n"
+
+    it "null stderr" $ do
+        -- In particular, writing to that doesn't terminate the process with an error
+        bs <- readProcessStdout_ $ setStderr nullStream $ setStdin nullStream $
+          proc "sh" ["-c", "echo hello >&2; echo world"]
+        bs `shouldBe` "world\n"
 
     it "useHandleOpen" $ withSystemTempFile "use-handle-open" $ \fp h -> do
         let bs :: IsString s => s
