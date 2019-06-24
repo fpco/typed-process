@@ -493,17 +493,15 @@ setChildUserInherit pc = pc { pcChildUser = Nothing }
 mkStreamSpec :: P.StdStream
              -> (ProcessConfig () () () -> Maybe Handle -> IO (a, IO ()))
              -> StreamSpec streamType a
-mkStreamSpec ss f = mkStreamSpec' ($ ss) f
+mkStreamSpec ss f = mkManagedStreamSpec ($ ss) f
 
 -- | Create a new 'StreamSpec' from a function that accepts a
 -- 'P.StdStream' and a helper function.  This function is the same as
 -- the helper in 'mkStreamSpec'
---
--- @since 0.2.5.0
-mkStreamSpec' :: (forall b. (P.StdStream -> IO b) -> IO b)
-              -> (ProcessConfig () () () -> Maybe Handle -> IO (a, IO ()))
-              -> StreamSpec streamType a
-mkStreamSpec' ss f = StreamSpec ss (\pc mh -> Cleanup (f pc mh))
+mkManagedStreamSpec :: (forall b. (P.StdStream -> IO b) -> IO b)
+                    -> (ProcessConfig () () () -> Maybe Handle -> IO (a, IO ()))
+                    -> StreamSpec streamType a
+mkManagedStreamSpec ss f = StreamSpec ss (\pc mh -> Cleanup (f pc mh))
 
 -- | A stream spec which simply inherits the stream of the parent
 -- process.
@@ -518,7 +516,7 @@ inherit = mkStreamSpec P.Inherit (\_ Nothing -> pure ((), return ()))
 --
 -- @since 0.2.5.0
 nullStream :: StreamSpec anyStreamType ()
-nullStream = mkStreamSpec' opener cleanup
+nullStream = mkManagedStreamSpec opener cleanup
   where
     opener f =
       withBinaryFile nullDevice ReadWriteMode $ \handle ->
