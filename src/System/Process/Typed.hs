@@ -4,6 +4,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 -- | Please see the README.md file for examples of using this API.
 module System.Process.Typed
@@ -44,6 +45,7 @@ module System.Process.Typed
       -- * Stream specs
     , mkStreamSpec
     , inherit
+    , nullStream
     , closed
     , byteStringInput
     , byteStringOutput
@@ -96,12 +98,13 @@ import Control.Monad (void)
 import Control.Monad.IO.Class
 import qualified System.Process as P
 import Data.Typeable (Typeable)
-import System.IO (Handle, hClose)
+import System.IO (Handle, hClose, IOMode(ReadWriteMode), withBinaryFile)
 import System.IO.Error (isPermissionError)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (async, cancel, waitCatch)
 import Control.Concurrent.STM (newEmptyTMVarIO, atomically, putTMVar, TMVar, readTMVar, tryReadTMVar, STM, tryPutTMVar, throwSTM, catchSTM)
 import System.Exit (ExitCode (ExitSuccess))
+import System.Process.Typed.Internal
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as L8
 import Data.String (IsString (fromString))
@@ -205,7 +208,7 @@ data StreamType = STInput | STOutput
 --
 -- @since 0.1.0.0
 data StreamSpec (streamType :: StreamType) a = StreamSpec
-    { ssStream :: !P.StdStream
+    { ssStream :: !(forall b. (P.StdStream -> IO b) -> IO b)
     , ssCreate :: !(ProcessConfig () () () -> Maybe Handle -> Cleanup a)
     }
     deriving Functor
@@ -490,7 +493,15 @@ setChildUserInherit pc = pc { pcChildUser = Nothing }
 mkStreamSpec :: P.StdStream
              -> (ProcessConfig () () () -> Maybe Handle -> IO (a, IO ()))
              -> StreamSpec streamType a
-mkStreamSpec ss f = StreamSpec ss (\pc mh -> Cleanup (f pc mh))
+mkStreamSpec ss f = mkManagedStreamSpec ($ ss) f
+
+-- | Create a new 'StreamSpec' from a function that accepts a
+-- 'P.StdStream' and a helper function.  This function is the same as
+-- the helper in 'mkStreamSpec'
+mkManagedStreamSpec :: (forall b. (P.StdStream -> IO b) -> IO b)
+                    -> (ProcessConfig () () () -> Maybe Handle -> IO (a, IO ()))
+                    -> StreamSpec streamType a
+mkManagedStreamSpec ss f = StreamSpec ss (\pc mh -> Cleanup (f pc mh))
 
 -- | A stream spec which simply inherits the stream of the parent
 -- process.
@@ -499,7 +510,25 @@ mkStreamSpec ss f = StreamSpec ss (\pc mh -> Cleanup (f pc mh))
 inherit :: StreamSpec anyStreamType ()
 inherit = mkStreamSpec P.Inherit (\_ Nothing -> pure ((), return ()))
 
+-- | A stream spec which is empty when used for for input and discards
+-- output.  Note this requires your platform's null device to be
+-- available when the process is started.
+--
+-- @since 0.2.5.0
+nullStream :: StreamSpec anyStreamType ()
+nullStream = mkManagedStreamSpec opener cleanup
+  where
+    opener f =
+      withBinaryFile nullDevice ReadWriteMode $ \handle ->
+        f (P.UseHandle handle)
+    cleanup _ _ =
+      pure ((), return ())
+
 -- | A stream spec which will close the stream for the child process.
+-- You usually do not want to use this, as it will leave the
+-- corresponding file descriptor unassigned and hence available for
+-- re-use in the child process.  Prefer 'nullStream' unless you're
+-- certain you want this behavior.
 --
 -- @since 0.1.0.0
 closed :: StreamSpec anyStreamType ()
@@ -595,100 +624,104 @@ startProcess :: MonadIO m
              => ProcessConfig stdin stdout stderr
              -> m (Process stdin stdout stderr)
 startProcess pConfig'@ProcessConfig {..} = liftIO $ do
-    let cp0 =
-            case pcCmdSpec of
-                P.ShellCommand cmd -> P.shell cmd
-                P.RawCommand cmd args -> P.proc cmd args
-        cp = cp0
-            { P.std_in = ssStream pcStdin
-            , P.std_out = ssStream pcStdout
-            , P.std_err = ssStream pcStderr
-            , P.cwd = pcWorkingDir
-            , P.env = pcEnv
-            , P.close_fds = pcCloseFds
-            , P.create_group = pcCreateGroup
-            , P.delegate_ctlc = pcDelegateCtlc
+    ssStream pcStdin $ \realStdin ->
+      ssStream pcStdout $ \realStdout ->
+        ssStream pcStderr $ \realStderr -> do
+
+          let cp0 =
+                  case pcCmdSpec of
+                      P.ShellCommand cmd -> P.shell cmd
+                      P.RawCommand cmd args -> P.proc cmd args
+              cp = cp0
+                  { P.std_in = realStdin
+                  , P.std_out = realStdout
+                  , P.std_err = realStderr
+                  , P.cwd = pcWorkingDir
+                  , P.env = pcEnv
+                  , P.close_fds = pcCloseFds
+                  , P.create_group = pcCreateGroup
+                  , P.delegate_ctlc = pcDelegateCtlc
 
 #if MIN_VERSION_process(1, 3, 0)
-            , P.detach_console = pcDetachConsole
-            , P.create_new_console = pcCreateNewConsole
-            , P.new_session = pcNewSession
+                  , P.detach_console = pcDetachConsole
+                  , P.create_new_console = pcCreateNewConsole
+                  , P.new_session = pcNewSession
 #endif
 
 #if MIN_VERSION_process(1, 4, 0) && !WINDOWS
-            , P.child_group = pcChildGroup
-            , P.child_user = pcChildUser
+                  , P.child_group = pcChildGroup
+                  , P.child_user = pcChildUser
 #endif
 
-            }
+                  }
 
-    (minH, moutH, merrH, pHandle) <- P.createProcess_ "startProcess" cp
+          (minH, moutH, merrH, pHandle) <- P.createProcess_ "startProcess" cp
 
-    ((pStdin, pStdout, pStderr), pCleanup1) <- runCleanup $ (,,)
-        <$> ssCreate pcStdin  pConfig minH
-        <*> ssCreate pcStdout pConfig moutH
-        <*> ssCreate pcStderr pConfig merrH
+          ((pStdin, pStdout, pStderr), pCleanup1) <- runCleanup $ (,,)
+              <$> ssCreate pcStdin  pConfig minH
+              <*> ssCreate pcStdout pConfig moutH
+              <*> ssCreate pcStderr pConfig merrH
 
-    pExitCode <- newEmptyTMVarIO
-    waitingThread <- async $ do
-        ec <-
-          if multiThreadedRuntime
-            then P.waitForProcess pHandle
-            else do
-              switchTime <- fromIntegral . (`div` 1000) . ctxtSwitchTime
-                        <$> getConcFlags
-              let minDelay = 1
-                  maxDelay = max minDelay switchTime
-                  loop delay = do
-                    threadDelay delay
-                    mec <- P.getProcessExitCode pHandle
-                    case mec of
-                      Nothing -> loop $ min maxDelay (delay * 2)
-                      Just ec -> pure ec
-              loop minDelay
-        atomically $ putTMVar pExitCode ec
-        return ec
+          pExitCode <- newEmptyTMVarIO
+          waitingThread <- async $ do
+              ec <-
+                if multiThreadedRuntime
+                  then P.waitForProcess pHandle
+                  else do
+                    switchTime <- fromIntegral . (`div` 1000) . ctxtSwitchTime
+                              <$> getConcFlags
+                    let minDelay = 1
+                        maxDelay = max minDelay switchTime
+                        loop delay = do
+                          threadDelay delay
+                          mec <- P.getProcessExitCode pHandle
+                          case mec of
+                            Nothing -> loop $ min maxDelay (delay * 2)
+                            Just ec -> pure ec
+                    loop minDelay
+              atomically $ putTMVar pExitCode ec
+              return ec
 
-    let pCleanup = pCleanup1 `finally` do
-            -- First: stop calling waitForProcess, so that we can
-            -- avoid race conditions where the process is removed from
-            -- the system process table while we're trying to
-            -- terminate it.
-            cancel waitingThread
+          let pCleanup = pCleanup1 `finally` do
+                  -- First: stop calling waitForProcess, so that we can
+                  -- avoid race conditions where the process is removed from
+                  -- the system process table while we're trying to
+                  -- terminate it.
+                  cancel waitingThread
 
-            -- Now check if the process had already exited
-            eec <- waitCatch waitingThread
+                  -- Now check if the process had already exited
+                  eec <- waitCatch waitingThread
 
-            case eec of
-                -- Process already exited, nothing to do
-                Right _ec -> return ()
+                  case eec of
+                      -- Process already exited, nothing to do
+                      Right _ec -> return ()
 
-                -- Process didn't exit yet, let's terminate it and
-                -- then call waitForProcess ourselves
-                Left _ -> do
-                    eres <- try $ P.terminateProcess pHandle
-                    ec <-
-                      case eres of
-                        Left e
-                          -- On Windows, with the single-threaded runtime, it
-                          -- seems that if a process has already exited, the
-                          -- call to terminateProcess will fail with a
-                          -- permission denied error. To work around this, we
-                          -- catch this exception and then immediately
-                          -- waitForProcess. There's a chance that there may be
-                          -- other reasons for this permission error to appear,
-                          -- in which case this code may allow us to wait too
-                          -- long for a child process instead of erroring out.
-                          -- Recommendation: always use the multi-threaded
-                          -- runtime!
-                          | isPermissionError e && not multiThreadedRuntime && isWindows ->
-                            P.waitForProcess pHandle
-                          | otherwise -> throwIO e
-                        Right () -> P.waitForProcess pHandle
-                    success <- atomically $ tryPutTMVar pExitCode ec
-                    evaluate $ assert success ()
+                      -- Process didn't exit yet, let's terminate it and
+                      -- then call waitForProcess ourselves
+                      Left _ -> do
+                          eres <- try $ P.terminateProcess pHandle
+                          ec <-
+                            case eres of
+                              Left e
+                                -- On Windows, with the single-threaded runtime, it
+                                -- seems that if a process has already exited, the
+                                -- call to terminateProcess will fail with a
+                                -- permission denied error. To work around this, we
+                                -- catch this exception and then immediately
+                                -- waitForProcess. There's a chance that there may be
+                                -- other reasons for this permission error to appear,
+                                -- in which case this code may allow us to wait too
+                                -- long for a child process instead of erroring out.
+                                -- Recommendation: always use the multi-threaded
+                                -- runtime!
+                                | isPermissionError e && not multiThreadedRuntime && isWindows ->
+                                  P.waitForProcess pHandle
+                                | otherwise -> throwIO e
+                              Right () -> P.waitForProcess pHandle
+                          success <- atomically $ tryPutTMVar pExitCode ec
+                          evaluate $ assert success ()
 
-    return Process {..}
+          return Process {..}
   where
     pConfig = clearStreams pConfig'
 
