@@ -1,3 +1,9 @@
+# ChangeLog for typed-process
+
+## 0.2.5.0
+
+* Add a `nullStream` [#24](https://github.com/fpco/typed-process/pull/24)
+
 ## 0.2.4.1
 
 * Fix a `Handle` leak in `withProcessInterleave` and its derivatives.
