@@ -3,6 +3,8 @@
 ## 0.2.5.0
 
 * Add a `nullStream` [#24](https://github.com/fpco/typed-process/pull/24)
+* Add `withProcessWait`, `withProcessWait_`, `withProcessTerm`, and `withProcessTerm_`
+  [#25](https://github.com/fpco/typed-process/issues/25)
 
 ## 0.2.4.1
 
