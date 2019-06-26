@@ -99,7 +99,7 @@ spec = do
         runProcess_ "false" `shouldThrow` \ExitCodeException{} -> True
 
     it "async" $ withSystemTempFile "httpbin" $ \fp h -> do
-        lbs <- withProcess (setStdin createPipe $ setStdout byteStringOutput "base64") $ \p ->
+        lbs <- withProcessWait (setStdin createPipe $ setStdout byteStringOutput "base64") $ \p ->
             runConcurrently $
                 Concurrently (do
                   bs <- S.readFile "README.md"
@@ -111,6 +111,31 @@ spec = do
         let encoded = S.filter (/= 10) $ L.toStrict lbs
         raw <- S.readFile fp
         encoded `shouldBe` B64.encode raw
+
+    describe "withProcessWait" $ do
+        it "succeeds with sleep" $ do
+          p <- withProcessWait (proc "sleep" ["1"]) pure
+          checkExitCode p
+
+    describe "withProcessWait_" $ do
+        it "succeeds with sleep" $ do
+          withProcessWait_ (proc "sleep" ["1"]) $ const $ pure ()
+
+    -- These tests fail on older GHCs/process package versions
+    -- because, apparently, waitForProcess isn't interruptible. See
+    -- https://github.com/fpco/typed-process/pull/26#issuecomment-505702573.
+
+    {-
+    describe "withProcessTerm" $ do
+        it "fails with sleep" $ do
+          p <- withProcessTerm (proc "sleep" ["1"]) pure
+          checkExitCode p `shouldThrow` anyException
+
+    describe "withProcessTerm_" $ do
+        it "fails with sleep" $
+          withProcessTerm_ (proc "sleep" ["1"]) (const $ pure ())
+          `shouldThrow` anyException
+    -}
 
     it "interleaved output" $ withSystemTempFile "interleaved-output" $ \fp h -> do
         S.hPut h "\necho 'stdout'\n>&2 echo 'stderr'\necho 'stdout'"

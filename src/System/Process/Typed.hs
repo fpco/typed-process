@@ -56,6 +56,10 @@ module System.Process.Typed
       -- * Launch a process
     , startProcess
     , stopProcess
+    , withProcessWait
+    , withProcessWait_
+    , withProcessTerm
+    , withProcessTerm_
     , withProcess
     , withProcess_
     , readProcess
@@ -750,27 +754,73 @@ stopProcess = liftIO . pCleanup
 -- | Uses the bracket pattern to call 'startProcess' and ensures that
 -- 'stopProcess' is called.
 --
--- In version 0.2.0.0, this function was monomorphized to @IO@ to
--- avoid a dependency on the exceptions package.
+-- This function is usually /not/ what you want. You're likely better
+-- off using 'withProcessWait'. See
+-- <https://github.com/fpco/typed-process/issues/25>.
+--
+-- @since 0.2.5.0
+withProcessTerm
+  :: ProcessConfig stdin stdout stderr
+  -> (Process stdin stdout stderr -> IO a)
+  -> IO a
+withProcessTerm config = bracket (startProcess config) stopProcess
+
+-- | Uses the bracket pattern to call 'startProcess'. Unlike
+-- 'withProcessTerm', this function will wait for the child process to
+-- exit, and only kill it with 'stopProcess' in the event that the
+-- inner function throws an exception.
+--
+-- @since 0.2.5.0
+withProcessWait
+  :: ProcessConfig stdin stdout stderr
+  -> (Process stdin stdout stderr -> IO a)
+  -> IO a
+withProcessWait config f =
+  bracket
+    (startProcess config)
+    stopProcess
+    (\p -> f p <* waitExitCode p)
+
+-- | Deprecated synonym for 'withProcessTerm'.
 --
 -- @since 0.1.0.0
 withProcess :: ProcessConfig stdin stdout stderr
             -> (Process stdin stdout stderr -> IO a)
             -> IO a
-withProcess config = bracket (startProcess config) stopProcess
+withProcess = withProcessTerm
+{-# DEPRECATED withProcess "Please consider using withProcessWait, or instead use withProcessTerm" #-}
 
--- | Same as 'withProcess', but also calls 'checkExitCode'
+-- | Same as 'withProcessTerm', but also calls 'checkExitCode'
 --
--- In version 0.2.0.0, this function was monomorphized to @IO@ to
--- avoid a dependency on the exceptions package.
+-- @since 0.2.5.0
+withProcessTerm_
+  :: ProcessConfig stdin stdout stderr
+  -> (Process stdin stdout stderr -> IO a)
+  -> IO a
+withProcessTerm_ config = bracket
+    (startProcess config)
+    (\p -> stopProcess p `finally` checkExitCode p)
+
+-- | Same as 'withProcessWait', but also calls 'checkExitCode'
+--
+-- @since 0.2.5.0
+withProcessWait_
+  :: ProcessConfig stdin stdout stderr
+  -> (Process stdin stdout stderr -> IO a)
+  -> IO a
+withProcessWait_ config f = bracket
+    (startProcess config)
+    stopProcess
+    (\p -> f p <* checkExitCode p)
+
+-- | Deprecated synonym for 'withProcessTerm_'.
 --
 -- @since 0.1.0.0
 withProcess_ :: ProcessConfig stdin stdout stderr
              -> (Process stdin stdout stderr -> IO a)
              -> IO a
-withProcess_ config = bracket
-    (startProcess config)
-    (\p -> stopProcess p `finally` checkExitCode p)
+withProcess_ = withProcessTerm_
+{-# DEPRECATED withProcess_ "Please consider using withProcessWait_, or instead use withProcessTerm_" #-}
 
 -- | Run a process, capture its standard output and error as a
 -- 'L.ByteString', wait for it to complete, and then return its exit
