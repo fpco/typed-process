@@ -123,12 +123,12 @@ spec = do
 
     describe "withProcessTerm" $ do
         it "fails with sleep" $ do
-          p <- withProcessTerm (proc "sleep" ["1"]) pure
+          p <- withProcessTerm (proc "sleep" ["10"]) pure
           checkExitCode p `shouldThrow` anyException
 
     describe "withProcessTerm_" $ do
         it "fails with sleep" $
-          withProcessTerm_ (proc "sleep" ["1"]) pure
+          withProcessTerm_ (proc "sleep" ["10"]) (const $ pure ())
           `shouldThrow` anyException
 
     it "interleaved output" $ withSystemTempFile "interleaved-output" $ \fp h -> do
