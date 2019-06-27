@@ -105,7 +105,7 @@ import Data.Typeable (Typeable)
 import System.IO (Handle, hClose, IOMode(ReadWriteMode), withBinaryFile)
 import System.IO.Error (isPermissionError)
 import Control.Concurrent (threadDelay)
-import Control.Concurrent.Async (async, cancel, waitCatch)
+import Control.Concurrent.Async (async, asyncWithUnmask, cancel, waitCatch)
 import Control.Concurrent.STM (newEmptyTMVarIO, atomically, putTMVar, TMVar, readTMVar, tryReadTMVar, STM, tryPutTMVar, throwSTM, catchSTM)
 import System.Exit (ExitCode (ExitSuccess))
 import System.Process.Typed.Internal
@@ -667,8 +667,8 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
               <*> ssCreate pcStderr pConfig merrH
 
           pExitCode <- newEmptyTMVarIO
-          waitingThread <- async $ do
-              ec <-
+          waitingThread <- asyncWithUnmask $ \unmask -> do
+              ec <- unmask $ -- make sure the masking state from a bracket isn't inherited
                 if multiThreadedRuntime
                   then P.waitForProcess pHandle
                   else do
