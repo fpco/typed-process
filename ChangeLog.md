@@ -1,5 +1,10 @@
 # ChangeLog for typed-process
 
+## Unreleased
+
+* The cleanup thread applies an `unmask` to the actions which wait for a
+  process to exit, allowing the action to be interruptible.
+
 ## 0.2.5.0
 
 * Add a `nullStream` [#24](https://github.com/fpco/typed-process/pull/24)
