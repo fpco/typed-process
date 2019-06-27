@@ -147,7 +147,12 @@ before_install:
   then
     travis_retry curl --insecure -L https://www.stackage.org/stack/osx-x86_64 | tar xz --strip-components=1 --include '*/stack' -C ~/.local/bin
   else
-    travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+    # See if the new release of Stack will fix the unpack bug
+
+    #travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+    travis_retry curl -L https://s3.amazonaws.com/www.snoyman.com/stack-1ed71cae36a64365ead72da1427e1685ccec8246.bz2 > ~/.local/bin/stack.bz2
+    bunzip2 ~/.local/bin/stack.bz2
+    chmod +x ~/.local/bin/stack
   fi
 
   # Use the more reliable S3 mirror of Hackage
