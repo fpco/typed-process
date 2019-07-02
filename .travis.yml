@@ -76,19 +76,19 @@ matrix:
   #  compiler: ": #stack 7.8.4"
   #  addons: {apt: {packages: [libgmp-dev]}}
 
-  - env: BUILD=stack ARGS="--resolver lts-3"
+  - env: BUILD=stack ARGS="--resolver lts-3 --stack-yaml stack-lts-3.yaml"
     compiler: ": #stack 7.10.2"
     addons: {apt: {packages: [libgmp-dev]}}
 
-  - env: BUILD=stack ARGS="--resolver lts-6"
+  - env: BUILD=stack ARGS="--resolver lts-6 --stack-yaml stack-lts-6.yaml"
     compiler: ": #stack 7.10.3"
     addons: {apt: {packages: [libgmp-dev]}}
 
-  - env: BUILD=stack ARGS="--resolver lts-7"
+  - env: BUILD=stack ARGS="--resolver lts-7 --stack-yaml stack-lts-7.yaml"
     compiler: ": #stack 8.0.1"
     addons: {apt: {packages: [libgmp-dev]}}
 
-  - env: BUILD=stack ARGS="--resolver lts-9"
+  - env: BUILD=stack ARGS="--resolver lts-9 --stack-yaml stack-lts-9.yaml"
     compiler: ": #stack 8.0.2"
     addons: {apt: {packages: [libgmp-dev]}}
 
@@ -107,19 +107,19 @@ matrix:
   #  compiler: ": #stack 7.8.4 osx"
   #  os: osx
 
-  - env: BUILD=stack ARGS="--resolver lts-3"
+  - env: BUILD=stack ARGS="--resolver lts-3 --stack-yaml stack-lts-3.yaml"
     compiler: ": #stack 7.10.2 osx"
     os: osx
 
-  - env: BUILD=stack ARGS="--resolver lts-6"
+  - env: BUILD=stack ARGS="--resolver lts-6 --stack-yaml stack-lts-6.yaml"
     compiler: ": #stack 7.10.3 osx"
     os: osx
 
-  - env: BUILD=stack ARGS="--resolver lts-7"
+  - env: BUILD=stack ARGS="--resolver lts-7 --stack-yaml stack-lts-7.yaml"
     compiler: ": #stack 8.0.1 osx"
     os: osx
 
-  - env: BUILD=stack ARGS="--resolver lts-9"
+  - env: BUILD=stack ARGS="--resolver lts-9 --stack-yaml stack-lts-9.yaml"
     compiler: ": #stack 8.0.2 osx"
     os: osx
 

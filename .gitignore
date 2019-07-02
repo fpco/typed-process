@@ -2,3 +2,4 @@
 *~
 tarballs/
 /typed-process.cabal
+stack.yaml.lock
