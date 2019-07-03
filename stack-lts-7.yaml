@@ -1,0 +1,4 @@
+resolver: lts-7.24
+extra-deps:
+- unliftio-core-0.1.2.0@sha256:7f9b48adef8e36da0202e6e70a733a5e210263ed4177c93e47a4b3f89694194b,1081
+

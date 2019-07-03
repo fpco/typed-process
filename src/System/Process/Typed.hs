@@ -97,7 +97,8 @@ module System.Process.Typed
 
 import qualified Data.ByteString as S
 import Data.ByteString.Lazy.Internal (defaultChunkSize)
-import Control.Exception (assert, evaluate, throwIO, Exception, SomeException, finally, bracket, onException, catch, try)
+import qualified Control.Exception as E
+import Control.Exception hiding (bracket, finally)
 import Control.Monad (void)
 import Control.Monad.IO.Class
 import qualified System.Process as P
@@ -113,6 +114,7 @@ import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as L8
 import Data.String (IsString (fromString))
 import GHC.RTS.Flags (getConcFlags, ctxtSwitchTime)
+import Control.Monad.IO.Unlift
 
 #if MIN_VERSION_process(1, 4, 0) && !WINDOWS
 import System.Posix.Types (GroupID, UserID)
@@ -759,10 +761,10 @@ stopProcess = liftIO . pCleanup
 -- <https://github.com/fpco/typed-process/issues/25>.
 --
 -- @since 0.2.5.0
-withProcessTerm
-  :: ProcessConfig stdin stdout stderr
-  -> (Process stdin stdout stderr -> IO a)
-  -> IO a
+withProcessTerm :: (MonadUnliftIO m)
+  => ProcessConfig stdin stdout stderr
+  -> (Process stdin stdout stderr -> m a)
+  -> m a
 withProcessTerm config = bracket (startProcess config) stopProcess
 
 -- | Uses the bracket pattern to call 'startProcess'. Unlike
@@ -771,10 +773,10 @@ withProcessTerm config = bracket (startProcess config) stopProcess
 -- inner function throws an exception.
 --
 -- @since 0.2.5.0
-withProcessWait
-  :: ProcessConfig stdin stdout stderr
-  -> (Process stdin stdout stderr -> IO a)
-  -> IO a
+withProcessWait :: (MonadUnliftIO m)
+  => ProcessConfig stdin stdout stderr
+  -> (Process stdin stdout stderr -> m a)
+  -> m a
 withProcessWait config f =
   bracket
     (startProcess config)
@@ -784,19 +786,20 @@ withProcessWait config f =
 -- | Deprecated synonym for 'withProcessTerm'.
 --
 -- @since 0.1.0.0
-withProcess :: ProcessConfig stdin stdout stderr
-            -> (Process stdin stdout stderr -> IO a)
-            -> IO a
+withProcess :: (MonadUnliftIO m)
+  => ProcessConfig stdin stdout stderr
+  -> (Process stdin stdout stderr -> m a)
+  -> m a
 withProcess = withProcessTerm
 {-# DEPRECATED withProcess "Please consider using withProcessWait, or instead use withProcessTerm" #-}
 
 -- | Same as 'withProcessTerm', but also calls 'checkExitCode'
 --
 -- @since 0.2.5.0
-withProcessTerm_
-  :: ProcessConfig stdin stdout stderr
-  -> (Process stdin stdout stderr -> IO a)
-  -> IO a
+withProcessTerm_ :: (MonadUnliftIO m)
+  => ProcessConfig stdin stdout stderr
+  -> (Process stdin stdout stderr -> m a)
+  -> m a
 withProcessTerm_ config = bracket
     (startProcess config)
     (\p -> stopProcess p `finally` checkExitCode p)
@@ -804,10 +807,10 @@ withProcessTerm_ config = bracket
 -- | Same as 'withProcessWait', but also calls 'checkExitCode'
 --
 -- @since 0.2.5.0
-withProcessWait_
-  :: ProcessConfig stdin stdout stderr
-  -> (Process stdin stdout stderr -> IO a)
-  -> IO a
+withProcessWait_ :: (MonadUnliftIO m)
+  => ProcessConfig stdin stdout stderr
+  -> (Process stdin stdout stderr -> m a)
+  -> m a
 withProcessWait_ config f = bracket
     (startProcess config)
     stopProcess
@@ -816,9 +819,10 @@ withProcessWait_ config f = bracket
 -- | Deprecated synonym for 'withProcessTerm_'.
 --
 -- @since 0.1.0.0
-withProcess_ :: ProcessConfig stdin stdout stderr
-             -> (Process stdin stdout stderr -> IO a)
-             -> IO a
+withProcess_ :: (MonadUnliftIO m)
+  => ProcessConfig stdin stdout stderr
+  -> (Process stdin stdout stderr -> m a)
+  -> m a
 withProcess_ = withProcessTerm_
 {-# DEPRECATED withProcess_ "Please consider using withProcessWait_, or instead use withProcessTerm_" #-}
 
@@ -933,10 +937,10 @@ readProcessStderr_ pc =
   where
     pc' = setStderr byteStringOutput pc
 
-withProcessInterleave
-  :: ProcessConfig stdin stdoutIgnored stderrIgnored
-  -> (Process stdin (STM L.ByteString) () -> IO a)
-  -> IO a
+withProcessInterleave :: (MonadUnliftIO m)
+  => ProcessConfig stdin stdoutIgnored stderrIgnored
+  -> (Process stdin (STM L.ByteString) () -> m a)
+  -> m a
 withProcessInterleave pc inner =
     -- Create a pipe to be shared for both stdout and stderr
     bracket P.createPipe (\(r, w) -> hClose r >> hClose w) $ \(readEnd, writeEnd) -> do
@@ -949,7 +953,7 @@ withProcessInterleave pc inner =
         withProcess pc' $ \p -> do
           -- Now that the process is forked, close the writer end of this
           -- pipe, otherwise the reader end will never give an EOF.
-          hClose writeEnd
+          liftIO $ hClose writeEnd
           inner p
 
 -- | Same as 'readProcess', but interleaves stderr with stdout.
@@ -1142,3 +1146,9 @@ instance Exception ByteStringOutputException
 -- @since 0.1.1
 unsafeProcessHandle :: Process stdin stdout stderr -> P.ProcessHandle
 unsafeProcessHandle = pHandle
+
+bracket :: MonadUnliftIO m => IO a -> (a -> IO b) -> (a -> m c) -> m c
+bracket before after thing = withRunInIO $ \run -> E.bracket before after (run . thing)
+
+finally :: MonadUnliftIO m => m a -> IO () -> m a
+finally thing after = withRunInIO $ \run -> E.finally (run thing) after

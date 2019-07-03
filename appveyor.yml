@@ -19,9 +19,9 @@ environment:
 
   # Compiler does not work on AppVeyor
   #- ARGS: "--resolver lts-3"
-  - ARGS: "--resolver lts-6"
-  - ARGS: "--resolver lts-7"
-  - ARGS: "--resolver lts-9"
+  - ARGS: "--resolver lts-6 --stack-yaml stack-lts-6.yaml"
+  - ARGS: "--resolver lts-7 --stack-yaml stack-lts-7.yaml"
+  - ARGS: "--resolver lts-9 --stack-yaml stack-lts-9.yaml"
   - ARGS: "--resolver lts-11"
   #- ARGS: "--resolver nightly"
 

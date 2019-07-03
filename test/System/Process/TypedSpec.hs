@@ -112,14 +112,14 @@ spec = do
         raw <- S.readFile fp
         encoded `shouldBe` B64.encode raw
 
-    describe "withProcessWait" $ do
+    describe "withProcessWait" $
         it "succeeds with sleep" $ do
           p <- withProcessWait (proc "sleep" ["1"]) pure
-          checkExitCode p
+          checkExitCode p :: IO ()
 
-    describe "withProcessWait_" $ do
-        it "succeeds with sleep" $ do
-          withProcessWait_ (proc "sleep" ["1"]) $ const $ pure ()
+    describe "withProcessWait_" $
+        it "succeeds with sleep"
+           ((withProcessWait_ (proc "sleep" ["1"]) $ const $ pure ()) :: IO ())
 
     -- These tests fail on older GHCs/process package versions
     -- because, apparently, waitForProcess isn't interruptible. See
