@@ -29,7 +29,7 @@ the surface.
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.IO (hPutStr, hClose)
 import System.Process.Typed
@@ -60,7 +60,7 @@ main = do
     let catConfig = setStdin createPipe
                   $ setStdout byteStringOutput
                   $ proc "cat" ["/etc/hosts", "-", "/etc/group"]
-    withProcess_ catConfig $ \p -> do
+    withProcessWait_ catConfig $ \p -> do
         hPutStr (getStdin p) "\n\nHELLO\n"
         hPutStr (getStdin p) "WORLD\n\n\n"
         hClose (getStdin p)
@@ -85,14 +85,15 @@ are simply to spell things out, they are not needed.)
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
 main :: IO ()
 main = do
     let dateConfig :: ProcessConfig () () ()
-        dateConfig = "date"
+        dateConfig = proc "date" []
+        -- alternatively: `shell "date"` or just "date"
 
     process <- startProcess dateConfig
     exitCode <- waitExitCode (process :: Process () () ())
@@ -108,17 +109,17 @@ resources with `stopProcess`. (We'll get to those `() () ()` type
 parameters in the next section.)
 
 Instead of explicitly dealing with `startProcess` and `stopProcess`,
-it's recommended to instead use `withProcess`, which uses the bracket
+it's recommended to instead use `withProcessWait`, which uses the bracket
 pattern and is exception safe:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
 main :: IO ()
-main = withProcess "date" $ \process -> do
+main = withProcessWait "date" $ \process -> do
     exitCode <- waitExitCode (process :: Process () () ())
     print exitCode
 ```
@@ -129,7 +130,7 @@ its own:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -157,7 +158,7 @@ it at all.
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -189,7 +190,7 @@ system's shell.
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -220,7 +221,7 @@ exit-code-checking function.
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -234,7 +235,7 @@ anything but success. Want to see it in action?
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -247,12 +248,12 @@ function. We can do this more explicitly if desired:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
 main :: IO ()
-main = withProcess "false" checkExitCode
+main = withProcessWait "false" checkExitCode
 ```
 
 ## Reading from a process
@@ -265,7 +266,7 @@ that:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 import System.Exit (ExitCode)
@@ -291,7 +292,7 @@ Like `runProcess`, there's an exit-code-checking variant of
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 import Data.ByteString.Lazy (ByteString)
@@ -317,7 +318,7 @@ can do some nice things:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 import UnliftIO.Temporary (withSystemTempFile)
@@ -341,7 +342,7 @@ of multiple processes to a single file, you can instead use
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 import System.IO (hClose)
@@ -371,7 +372,7 @@ process:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -383,7 +384,7 @@ This is just a shortcut for using the `byteStringInput` function:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
@@ -396,7 +397,7 @@ file:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 import System.IO
@@ -422,7 +423,7 @@ For this, using `createPipe` makes a lot of sense:
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 import System.IO
@@ -456,7 +457,7 @@ common settings: the working directory and environment variables.
 
 ```haskell
 #!/usr/bin/env stack
--- stack --resolver lts-12.21 script
+-- stack --resolver lts-16.27 script
 {-# LANGUAGE OverloadedStrings #-}
 import System.Process.Typed
 
