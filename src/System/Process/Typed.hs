@@ -493,7 +493,7 @@ setChildUserInherit pc = pc { pcChildUser = Nothing }
 -- 'P.StdStream' argument.
 --
 -- * Returns the actual stream value @a@, as well as a cleanup
--- * function to be run when calling 'stopProcess'.
+-- function to be run when calling 'stopProcess'.
 --
 -- @since 0.1.0.0
 mkStreamSpec :: P.StdStream
