@@ -311,7 +311,9 @@ setShell cmd p = p { pcCmdSpec = P.ShellCommand cmd }
 --
 -- @since 0.1.0.0
 setStdin :: StreamSpec 'STInput stdin
+         -- ^
          -> ProcessConfig stdin0 stdout stderr
+         -- ^
          -> ProcessConfig stdin stdout stderr
 setStdin spec pc = pc { pcStdin = spec }
 
@@ -321,7 +323,9 @@ setStdin spec pc = pc { pcStdin = spec }
 --
 -- @since 0.1.0.0
 setStdout :: StreamSpec 'STOutput stdout
+          -- ^
           -> ProcessConfig stdin stdout0 stderr
+          -- ^
           -> ProcessConfig stdin stdout stderr
 setStdout spec pc = pc { pcStdout = spec }
 
@@ -331,7 +335,9 @@ setStdout spec pc = pc { pcStdout = spec }
 --
 -- @since 0.1.0.0
 setStderr :: StreamSpec 'STOutput stderr
+          -- ^
           -> ProcessConfig stdin stdout stderr0
+          -- ^
           -> ProcessConfig stdin stdout stderr
 setStderr spec pc = pc { pcStderr = spec }
 
@@ -341,7 +347,9 @@ setStderr spec pc = pc { pcStderr = spec }
 --
 -- @since 0.1.0.0
 setWorkingDir :: FilePath
+              -- ^
               -> ProcessConfig stdin stdout stderr
+              -- ^
               -> ProcessConfig stdin stdout stderr
 setWorkingDir dir pc = pc { pcWorkingDir = Just dir }
 
@@ -350,6 +358,7 @@ setWorkingDir dir pc = pc { pcWorkingDir = Just dir }
 -- @since 0.2.2.0
 setWorkingDirInherit
   :: ProcessConfig stdin stdout stderr
+  -- ^
   -> ProcessConfig stdin stdout stderr
 setWorkingDirInherit pc = pc { pcWorkingDir = Nothing }
 
@@ -359,7 +368,9 @@ setWorkingDirInherit pc = pc { pcWorkingDir = Nothing }
 --
 -- @since 0.1.0.0
 setEnv :: [(String, String)]
+       -- ^
        -> ProcessConfig stdin stdout stderr
+       -- ^
        -> ProcessConfig stdin stdout stderr
 setEnv env pc = pc { pcEnv = Just env }
 
@@ -368,6 +379,7 @@ setEnv env pc = pc { pcEnv = Just env }
 -- @since 0.2.2.0
 setEnvInherit
   :: ProcessConfig stdin stdout stderr
+  -- ^
   -> ProcessConfig stdin stdout stderr
 setEnvInherit pc = pc { pcEnv = Nothing }
 
@@ -379,7 +391,9 @@ setEnvInherit pc = pc { pcEnv = Nothing }
 -- @since 0.1.0.0
 setCloseFds
     :: Bool
+    -- ^
     -> ProcessConfig stdin stdout stderr
+    -- ^
     -> ProcessConfig stdin stdout stderr
 setCloseFds x pc = pc { pcCloseFds = x }
 
@@ -390,7 +404,9 @@ setCloseFds x pc = pc { pcCloseFds = x }
 -- @since 0.1.0.0
 setCreateGroup
     :: Bool
+    -- ^
     -> ProcessConfig stdin stdout stderr
+    -- ^
     -> ProcessConfig stdin stdout stderr
 setCreateGroup x pc = pc { pcCreateGroup = x }
 
@@ -402,7 +418,9 @@ setCreateGroup x pc = pc { pcCreateGroup = x }
 -- @since 0.1.0.0
 setDelegateCtlc
     :: Bool
+    -- ^
     -> ProcessConfig stdin stdout stderr
+    -- ^
     -> ProcessConfig stdin stdout stderr
 setDelegateCtlc x pc = pc { pcDelegateCtlc = x }
 
@@ -415,7 +433,9 @@ setDelegateCtlc x pc = pc { pcDelegateCtlc = x }
 -- @since 0.1.0.0
 setDetachConsole
     :: Bool
+    -- ^
     -> ProcessConfig stdin stdout stderr
+    -- ^
     -> ProcessConfig stdin stdout stderr
 setDetachConsole x pc = pc { pcDetachConsole = x }
 
@@ -426,7 +446,9 @@ setDetachConsole x pc = pc { pcDetachConsole = x }
 -- @since 0.1.0.0
 setCreateNewConsole
     :: Bool
+    -- ^
     -> ProcessConfig stdin stdout stderr
+    -- ^
     -> ProcessConfig stdin stdout stderr
 setCreateNewConsole x pc = pc { pcCreateNewConsole = x }
 
@@ -438,7 +460,9 @@ setCreateNewConsole x pc = pc { pcCreateNewConsole = x }
 -- @since 0.1.0.0
 setNewSession
     :: Bool
+    -- ^
     -> ProcessConfig stdin stdout stderr
+    -- ^
     -> ProcessConfig stdin stdout stderr
 setNewSession x pc = pc { pcNewSession = x }
 #endif
@@ -452,7 +476,9 @@ setNewSession x pc = pc { pcNewSession = x }
 -- @since 0.1.0.0
 setChildGroup
     :: GroupID
+    -- ^
     -> ProcessConfig stdin stdout stderr
+    -- ^
     -> ProcessConfig stdin stdout stderr
 setChildGroup x pc = pc { pcChildGroup = Just x }
 
@@ -461,6 +487,7 @@ setChildGroup x pc = pc { pcChildGroup = Just x }
 -- @since 0.2.2.0
 setChildGroupInherit
   :: ProcessConfig stdin stdout stderr
+  -- ^
   -> ProcessConfig stdin stdout stderr
 setChildGroupInherit pc = pc { pcChildGroup = Nothing }
 
@@ -472,7 +499,9 @@ setChildGroupInherit pc = pc { pcChildGroup = Nothing }
 -- @since 0.1.0.0
 setChildUser
     :: UserID
+    -- ^
     -> ProcessConfig stdin stdout stderr
+    -- ^
     -> ProcessConfig stdin stdout stderr
 setChildUser x pc = pc { pcChildUser = Just x }
 
@@ -481,6 +510,7 @@ setChildUser x pc = pc { pcChildUser = Just x }
 -- @since 0.2.2.0
 setChildUserInherit
   :: ProcessConfig stdin stdout stderr
+  -- ^
   -> ProcessConfig stdin stdout stderr
 setChildUserInherit pc = pc { pcChildUser = Nothing }
 #endif
@@ -497,7 +527,9 @@ setChildUserInherit pc = pc { pcChildUser = Nothing }
 --
 -- @since 0.1.0.0
 mkStreamSpec :: P.StdStream
+             -- ^
              -> (ProcessConfig () () () -> Maybe Handle -> IO (a, IO ()))
+             -- ^
              -> StreamSpec streamType a
 mkStreamSpec ss f = mkManagedStreamSpec ($ ss) f
 
@@ -505,7 +537,9 @@ mkStreamSpec ss f = mkManagedStreamSpec ($ ss) f
 -- 'P.StdStream' and a helper function.  This function is the same as
 -- the helper in 'mkStreamSpec'
 mkManagedStreamSpec :: (forall b. (P.StdStream -> IO b) -> IO b)
+                    -- ^
                     -> (ProcessConfig () () () -> Maybe Handle -> IO (a, IO ()))
+                    -- ^
                     -> StreamSpec streamType a
 mkManagedStreamSpec ss f = StreamSpec ss (\pc mh -> Cleanup (f pc mh))
 
@@ -628,6 +662,7 @@ useHandleClose h = mkStreamSpec (P.UseHandle h) $ \_ Nothing -> return ((), hClo
 -- @since 0.1.0.0
 startProcess :: MonadIO m
              => ProcessConfig stdin stdout stderr
+             -- ^
              -> m (Process stdin stdout stderr)
 startProcess pConfig'@ProcessConfig {..} = liftIO $ do
     ssStream pcStdin $ \realStdin ->
@@ -775,7 +810,9 @@ withProcessTerm config = bracket (startProcess config) stopProcess
 -- @since 0.2.5.0
 withProcessWait :: (MonadUnliftIO m)
   => ProcessConfig stdin stdout stderr
+  -- ^
   -> (Process stdin stdout stderr -> m a)
+  -- ^
   -> m a
 withProcessWait config f =
   bracket
@@ -798,7 +835,9 @@ withProcess = withProcessTerm
 -- @since 0.2.5.0
 withProcessTerm_ :: (MonadUnliftIO m)
   => ProcessConfig stdin stdout stderr
+  -- ^
   -> (Process stdin stdout stderr -> m a)
+  -- ^
   -> m a
 withProcessTerm_ config = bracket
     (startProcess config)
@@ -809,7 +848,9 @@ withProcessTerm_ config = bracket
 -- @since 0.2.5.0
 withProcessWait_ :: (MonadUnliftIO m)
   => ProcessConfig stdin stdout stderr
+  -- ^
   -> (Process stdin stdout stderr -> m a)
+  -- ^
   -> m a
 withProcessWait_ config f = bracket
     (startProcess config)
@@ -836,6 +877,7 @@ withProcess_ = withProcessTerm_
 -- @since 0.1.0.0
 readProcess :: MonadIO m
             => ProcessConfig stdin stdoutIgnored stderrIgnored
+            -- ^
             -> m (ExitCode, L.ByteString, L.ByteString)
 readProcess pc =
     liftIO $ withProcess pc' $ \p -> atomically $ (,,)
@@ -854,6 +896,7 @@ readProcess pc =
 -- @since 0.1.0.0
 readProcess_ :: MonadIO m
              => ProcessConfig stdin stdoutIgnored stderrIgnored
+             -- ^
              -> m (L.ByteString, L.ByteString)
 readProcess_ pc =
     liftIO $ withProcess pc' $ \p -> atomically $ do
@@ -874,6 +917,7 @@ readProcess_ pc =
 readProcessStdout
   :: MonadIO m
   => ProcessConfig stdin stdoutIgnored stderr
+  -- ^
   -> m (ExitCode, L.ByteString)
 readProcessStdout pc =
     liftIO $ withProcess pc' $ \p -> atomically $ (,)
@@ -891,6 +935,7 @@ readProcessStdout pc =
 readProcessStdout_
   :: MonadIO m
   => ProcessConfig stdin stdoutIgnored stderr
+  -- ^
   -> m L.ByteString
 readProcessStdout_ pc =
     liftIO $ withProcess pc' $ \p -> atomically $ do
@@ -909,6 +954,7 @@ readProcessStdout_ pc =
 readProcessStderr
   :: MonadIO m
   => ProcessConfig stdin stdout stderrIgnored
+  -- ^
   -> m (ExitCode, L.ByteString)
 readProcessStderr pc =
     liftIO $ withProcess pc' $ \p -> atomically $ (,)
@@ -926,6 +972,7 @@ readProcessStderr pc =
 readProcessStderr_
   :: MonadIO m
   => ProcessConfig stdin stdout stderrIgnored
+  -- ^
   -> m L.ByteString
 readProcessStderr_ pc =
     liftIO $ withProcess pc' $ \p -> atomically $ do
@@ -939,7 +986,9 @@ readProcessStderr_ pc =
 
 withProcessInterleave :: (MonadUnliftIO m)
   => ProcessConfig stdin stdoutIgnored stderrIgnored
+  -- ^
   -> (Process stdin (STM L.ByteString) () -> m a)
+  -- ^
   -> m a
 withProcessInterleave pc inner =
     -- Create a pipe to be shared for both stdout and stderr
@@ -965,6 +1014,7 @@ withProcessInterleave pc inner =
 readProcessInterleaved
   :: MonadIO m
   => ProcessConfig stdin stdoutIgnored stderrIgnored
+  -- ^
   -> m (ExitCode, L.ByteString)
 readProcessInterleaved pc =
     liftIO $
@@ -982,7 +1032,9 @@ readProcessInterleaved pc =
 readProcessInterleaved_
   :: MonadIO m
   => ProcessConfig stdin stdoutIgnored stderrIgnored
+  -- ^
   -> m L.ByteString
+  -- ^
 readProcessInterleaved_ pc =
     liftIO $
     withProcessInterleave pc $ \p -> atomically $ do
@@ -998,7 +1050,9 @@ readProcessInterleaved_ pc =
 -- @since 0.1.0.0
 runProcess :: MonadIO m
            => ProcessConfig stdin stdout stderr
+           -- ^
            -> m ExitCode
+           -- ^
 runProcess pc = liftIO $ withProcess pc waitExitCode
 
 -- | Same as 'runProcess', but instead of returning the
@@ -1007,6 +1061,7 @@ runProcess pc = liftIO $ withProcess pc waitExitCode
 -- @since 0.1.0.0
 runProcess_ :: MonadIO m
             => ProcessConfig stdin stdout stderr
+            -- ^
             -> m ()
 runProcess_ pc = liftIO $ withProcess pc checkExitCode
 
