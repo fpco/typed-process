@@ -659,7 +659,7 @@ useHandleClose :: Handle -> StreamSpec anyStreamType ()
 useHandleClose h = mkStreamSpec (P.UseHandle h) $ \_ Nothing -> return ((), hClose h)
 
 -- | Launch a process based on the given 'ProcessConfig'. You should
--- ensure that you close 'stopProcess' on the result. It's usually
+-- ensure that you call 'stopProcess' on the result. It's usually
 -- better to use one of the functions in this module which ensures
 -- 'stopProcess' is called, such as 'withProcess'.
 --
