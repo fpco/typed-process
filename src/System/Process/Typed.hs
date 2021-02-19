@@ -519,8 +519,9 @@ setChildUserInherit pc = pc { pcChildUser = Nothing }
 -- helper function. This function:
 --
 -- * Takes as input the raw @Maybe Handle@ returned by the
--- 'P.createProcess' function. This will be determined by the
--- 'P.StdStream' argument.
+-- 'P.createProcess' function. The handle will be @Just@ 'Handle' if the
+-- 'P.StdStream' argument is 'P.CreatePipe' and @Nothing@ otherwise.
+-- See 'P.createProcess' for more details.
 --
 -- * Returns the actual stream value @a@, as well as a cleanup
 -- function to be run when calling 'stopProcess'.
