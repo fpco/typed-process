@@ -6,7 +6,18 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
--- | Please see the README.md file for examples of using this API.
+-- | The simplest way to get started with this API is to turn on
+-- @OverloadedStrings@ and call 'runProcess'.  The following will
+-- write the contents of @/home@ to @stdout@ and then print the exit
+-- code (on a UNIX system).
+--
+-- @
+-- {-\# LANGUAGE OverloadedStrings \#-}
+--
+-- runProcess "ls -l /home" >>= print
+-- @
+--
+-- Please see the README.md file for more examples of using this API.
 module System.Process.Typed
     ( -- * Types
       ProcessConfig
