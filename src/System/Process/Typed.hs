@@ -43,7 +43,7 @@ module System.Process.Typed
 #endif
 
       -- * Stream specs
-    , mkStreamSpec
+      -- ** Built-in stream specs
     , inherit
     , nullStream
     , closed
@@ -52,6 +52,9 @@ module System.Process.Typed
     , createPipe
     , useHandleOpen
     , useHandleClose
+
+    -- ** Create your own stream spec
+    , mkStreamSpec
 
       -- * Launch a process
     , startProcess
