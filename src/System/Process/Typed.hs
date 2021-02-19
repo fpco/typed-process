@@ -213,7 +213,19 @@ instance (stdin ~ (), stdout ~ (), stderr ~ ())
 data StreamType = STInput | STOutput
 
 -- | A specification for how to create one of the three standard child
--- streams. See examples below.
+-- streams, @stdin@, @stdout@ and @stderr@. A 'StreamSpec' can be
+-- thought of as containing
+--
+-- 1. A type safe version of 'P.StdStream' from "System.Process".
+-- This determines whether the stream should be inherited from the
+-- parent process, piped to or from a 'Handle', etc.
+--
+-- 2. A means of accessing the stream as a value of type @a@
+--
+-- 3. A cleanup action which will be run on the stream once the
+-- process terminates
+--
+-- See examples below.
 --
 -- @since 0.1.0.0
 data StreamSpec (streamType :: StreamType) a = StreamSpec
