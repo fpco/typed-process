@@ -6,7 +6,18 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
--- | Please see the README.md file for examples of using this API.
+-- | The simplest way to get started with this API is to turn on
+-- @OverloadedStrings@ and call 'runProcess'.  The following will
+-- write the contents of @/home@ to @stdout@ and then print the exit
+-- code (on a UNIX system).
+--
+-- @
+-- {-\# LANGUAGE OverloadedStrings \#-}
+--
+-- runProcess "ls -l /home" >>= print
+-- @
+--
+-- Please see the README.md file for more examples of using this API.
 module System.Process.Typed
     ( -- * Types
       ProcessConfig
@@ -43,7 +54,7 @@ module System.Process.Typed
 #endif
 
       -- * Stream specs
-    , mkStreamSpec
+      -- ** Built-in stream specs
     , inherit
     , nullStream
     , closed
@@ -52,6 +63,9 @@ module System.Process.Typed
     , createPipe
     , useHandleOpen
     , useHandleClose
+
+    -- ** Create your own stream spec
+    , mkStreamSpec
 
       -- * Launch a process
     , startProcess
@@ -210,7 +224,19 @@ instance (stdin ~ (), stdout ~ (), stderr ~ ())
 data StreamType = STInput | STOutput
 
 -- | A specification for how to create one of the three standard child
--- streams. See examples below.
+-- streams, @stdin@, @stdout@ and @stderr@. A 'StreamSpec' can be
+-- thought of as containing
+--
+-- 1. A type safe version of 'P.StdStream' from "System.Process".
+-- This determines whether the stream should be inherited from the
+-- parent process, piped to or from a 'Handle', etc.
+--
+-- 2. A means of accessing the stream as a value of type @a@
+--
+-- 3. A cleanup action which will be run on the stream once the
+-- process terminates
+--
+-- See examples below.
 --
 -- @since 0.1.0.0
 data StreamSpec (streamType :: StreamType) a = StreamSpec
@@ -519,8 +545,9 @@ setChildUserInherit pc = pc { pcChildUser = Nothing }
 -- helper function. This function:
 --
 -- * Takes as input the raw @Maybe Handle@ returned by the
--- 'P.createProcess' function. This will be determined by the
--- 'P.StdStream' argument.
+-- 'P.createProcess' function. The handle will be @Just@ 'Handle' if the
+-- 'P.StdStream' argument is 'P.CreatePipe' and @Nothing@ otherwise.
+-- See 'P.createProcess' for more details.
 --
 -- * Returns the actual stream value @a@, as well as a cleanup
 -- function to be run when calling 'stopProcess'.
@@ -655,7 +682,7 @@ useHandleClose :: Handle -> StreamSpec anyStreamType ()
 useHandleClose h = mkStreamSpec (P.UseHandle h) $ \_ Nothing -> return ((), hClose h)
 
 -- | Launch a process based on the given 'ProcessConfig'. You should
--- ensure that you close 'stopProcess' on the result. It's usually
+-- ensure that you call 'stopProcess' on the result. It's usually
 -- better to use one of the functions in this module which ensures
 -- 'stopProcess' is called, such as 'withProcess'.
 --
