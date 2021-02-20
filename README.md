@@ -1,6 +1,6 @@
 ## typed-process
 
-[![Build Status](https://travis-ci.org/fpco/typed-process.svg?branch=master)](https://travis-ci.org/fpco/typed-process) [![Build status](https://ci.appveyor.com/api/projects/status/bhh7aekbgeqp7g5j/branch/master?svg=true)](https://ci.appveyor.com/project/snoyberg/typed-process/branch/master)
+[![Tests](https://github.com/fpco/typed-process/actions/workflows/tests.yml/badge.svg)](https://github.com/fpco/typed-process/actions/workflows/tests.yml)
 
 API level documentation (Haddocks) may be [found on
 Stackage](https://www.stackage.org/package/typed-process).
