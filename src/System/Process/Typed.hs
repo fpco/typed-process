@@ -768,6 +768,7 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
                       -- then call waitForProcess ourselves
                       Left _ -> do
                           eres <- try $ P.terminateProcess pHandle
+                          P.getProcessExitCode pHandle
                           ec <-
                             case eres of
                               Left e

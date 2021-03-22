@@ -7,6 +7,7 @@ import System.Process.Typed.Internal
 import System.IO
 import Control.Concurrent.Async (Concurrently (..))
 import Control.Concurrent.STM (atomically)
+import Control.Monad (when, replicateM_)
 import Test.Hspec
 import System.Exit
 import System.IO.Temp
@@ -120,6 +121,22 @@ spec = do
     describe "withProcessWait_" $
         it "succeeds with sleep"
            ((withProcessWait_ (proc "sleep" ["1"]) $ const $ pure ()) :: IO ())
+
+    -- See https://github.com/fpco/typed-process/issues/38
+    describe "withProcessTerm" $ do
+        let iterations = 200
+        it "does not exhibit a race condition" $ do
+            replicateM_ iterations $ do
+                withProcessTerm (setStdin createPipe $ setStdout createPipe $ setStderr inherit $ proc "cat" []) $ \ph -> do
+                    -- putStrLn $ "Iteration: " <> show i
+                    let inHandle = getStdin ph
+                    let outHandle = getStdout ph
+                    let contents = "Hello world\n"
+                    S.hPut inHandle contents
+                    hFlush inHandle
+                    output <- S.hGet outHandle (S.length contents)
+                    when (output /= contents) $ fail "failed to read."
+
 
     -- These tests fail on older GHCs/process package versions
     -- because, apparently, waitForProcess isn't interruptible. See
