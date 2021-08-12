@@ -1,6 +1,10 @@
 # ChangeLog for typed-process
 
-## Unreleased
+## 0.2.6.1
+
+* Doc improvements
+
+## 0.2.6.0
 
 * The cleanup thread applies an `unmask` to the actions which wait for a
   process to exit, allowing the action to be interruptible.
