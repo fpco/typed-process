@@ -684,7 +684,7 @@ useHandleClose h = mkStreamSpec (P.UseHandle h) $ \_ Nothing -> return ((), hClo
 -- | Launch a process based on the given 'ProcessConfig'. You should
 -- ensure that you call 'stopProcess' on the result. It's usually
 -- better to use one of the functions in this module which ensures
--- 'stopProcess' is called, such as 'withProcess'.
+-- 'stopProcess' is called, such as 'withProcessWait'.
 --
 -- @since 0.1.0.0
 startProcess :: MonadIO m
