@@ -71,18 +71,22 @@ module System.Process.Typed
     , startProcess
     , stopProcess
     , withProcessWait
-    , withProcessWait_
     , withProcessTerm
-    , withProcessTerm_
     , readProcess
-    , readProcess_
     , runProcess
-    , runProcess_
     , readProcessStdout
-    , readProcessStdout_
     , readProcessStderr
-    , readProcessStderr_
     , readProcessInterleaved
+      -- ** Exception-throwing functions
+      -- | The functions ending in underbar (@_@) are the same as
+      -- their counterparts without underbar but instead of returning
+      -- an 'ExitCode' they throw 'ExitCodeException' on failure.
+    , withProcessWait_
+    , withProcessTerm_
+    , readProcess_
+    , runProcess_
+    , readProcessStdout_
+    , readProcessStderr_
     , readProcessInterleaved_
 
       -- * Interact with a process
