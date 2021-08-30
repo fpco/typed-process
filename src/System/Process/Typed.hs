@@ -68,26 +68,26 @@ module System.Process.Typed
     , mkStreamSpec
 
       -- * Launch a process
-    , startProcess
-    , stopProcess
-    , withProcessWait
-    , withProcessTerm
-    , readProcess
     , runProcess
+    , readProcess
     , readProcessStdout
     , readProcessStderr
     , readProcessInterleaved
+    , withProcessWait
+    , withProcessTerm
+    , startProcess
+    , stopProcess
       -- ** Exception-throwing functions
       -- | The functions ending in underbar (@_@) are the same as
       -- their counterparts without underbar but instead of returning
       -- an 'ExitCode' they throw 'ExitCodeException' on failure.
-    , withProcessWait_
-    , withProcessTerm_
-    , readProcess_
     , runProcess_
+    , readProcess_
     , readProcessStdout_
     , readProcessStderr_
     , readProcessInterleaved_
+    , withProcessWait_
+    , withProcessTerm_
 
       -- * Interact with a process
 
