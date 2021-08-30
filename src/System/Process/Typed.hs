@@ -74,8 +74,6 @@ module System.Process.Typed
     , withProcessWait_
     , withProcessTerm
     , withProcessTerm_
-    , withProcess
-    , withProcess_
     , readProcess
     , readProcess_
     , runProcess
@@ -107,6 +105,9 @@ module System.Process.Typed
     , ByteStringOutputException (..)
       -- * Unsafe functions
     , unsafeProcessHandle
+      -- * Deprecated functions
+    , withProcess
+    , withProcess_
     ) where
 
 import qualified Data.ByteString as S
