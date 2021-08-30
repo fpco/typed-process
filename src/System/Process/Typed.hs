@@ -830,7 +830,9 @@ stopProcess = liftIO . pCleanup
 -- @since 0.2.5.0
 withProcessTerm :: (MonadUnliftIO m)
   => ProcessConfig stdin stdout stderr
+  -- ^
   -> (Process stdin stdout stderr -> m a)
+  -- ^
   -> m a
 withProcessTerm config = bracket (startProcess config) stopProcess
 
