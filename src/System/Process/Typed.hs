@@ -68,24 +68,26 @@ module System.Process.Typed
     , mkStreamSpec
 
       -- * Launch a process
+    , runProcess
+    , readProcess
+    , readProcessStdout
+    , readProcessStderr
+    , readProcessInterleaved
+    , withProcessWait
+    , withProcessTerm
     , startProcess
     , stopProcess
-    , withProcessWait
-    , withProcessWait_
-    , withProcessTerm
-    , withProcessTerm_
-    , withProcess
-    , withProcess_
-    , readProcess
-    , readProcess_
-    , runProcess
+      -- ** Exception-throwing functions
+      -- | The functions ending in underbar (@_@) are the same as
+      -- their counterparts without underbar but instead of returning
+      -- an 'ExitCode' they throw 'ExitCodeException' on failure.
     , runProcess_
-    , readProcessStdout
+    , readProcess_
     , readProcessStdout_
-    , readProcessStderr
     , readProcessStderr_
-    , readProcessInterleaved
     , readProcessInterleaved_
+    , withProcessWait_
+    , withProcessTerm_
 
       -- * Interact with a process
 
@@ -107,6 +109,9 @@ module System.Process.Typed
     , ByteStringOutputException (..)
       -- * Unsafe functions
     , unsafeProcessHandle
+      -- * Deprecated functions
+    , withProcess
+    , withProcess_
     ) where
 
 import qualified Data.ByteString as S
@@ -684,7 +689,7 @@ useHandleClose h = mkStreamSpec (P.UseHandle h) $ \_ Nothing -> return ((), hClo
 -- | Launch a process based on the given 'ProcessConfig'. You should
 -- ensure that you call 'stopProcess' on the result. It's usually
 -- better to use one of the functions in this module which ensures
--- 'stopProcess' is called, such as 'withProcess'.
+-- 'stopProcess' is called, such as 'withProcessWait'.
 --
 -- @since 0.1.0.0
 startProcess :: MonadIO m
@@ -825,7 +830,9 @@ stopProcess = liftIO . pCleanup
 -- @since 0.2.5.0
 withProcessTerm :: (MonadUnliftIO m)
   => ProcessConfig stdin stdout stderr
+  -- ^
   -> (Process stdin stdout stderr -> m a)
+  -- ^
   -> m a
 withProcessTerm config = bracket (startProcess config) stopProcess
 
