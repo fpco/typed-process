@@ -17,7 +17,8 @@
 -- 'runProcess' "ls -l /home" >>= print
 -- @
 --
--- Please see the README.md file for more examples of using this API.
+-- Please see the [README.md](https://github.com/fpco/typed-process#readme)
+-- file for more examples of using this API.
 module System.Process.Typed
     ( -- * Types
       ProcessConfig
