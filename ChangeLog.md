@@ -1,5 +1,9 @@
 # ChangeLog for typed-process
 
+## 0.2.6.3
+
+* Doc improvements
+
 ## 0.2.6.2
 
 * Doc improvements
