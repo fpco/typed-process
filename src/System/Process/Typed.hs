@@ -14,7 +14,7 @@
 -- @
 -- {-\# LANGUAGE OverloadedStrings \#-}
 --
--- runProcess "ls -l /home" >>= print
+-- 'runProcess' "ls -l /home" >>= print
 -- @
 --
 -- Please see the README.md file for more examples of using this API.
