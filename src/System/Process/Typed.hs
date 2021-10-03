@@ -30,6 +30,8 @@ module System.Process.Typed
     , proc
     , shell
 
+      -- | #processconfigsetters#
+
       -- ** Setters
     , setStdin
     , setStdout
@@ -53,6 +55,8 @@ module System.Process.Typed
     , setChildUserInherit
 #endif
 
+      -- | #streamspecs#
+
       -- * Stream specs
       -- ** Built-in stream specs
     , inherit
@@ -66,6 +70,8 @@ module System.Process.Typed
 
     -- ** Create your own stream spec
     , mkStreamSpec
+
+      -- | #launchaprocess#
 
       -- * Launch a process
     , runProcess
@@ -88,6 +94,8 @@ module System.Process.Typed
     , readProcessInterleaved_
     , withProcessWait_
     , withProcessTerm_
+
+      -- | #interactwithaprocess#
 
       -- * Interact with a process
 
@@ -166,7 +174,11 @@ import qualified System.Process.Internals as P (createProcess_)
 --
 -- In all cases, the default for all three streams is to inherit the
 -- streams from the parent process. For other settings, see the
--- setters below for default values.
+-- [setters below](#processconfigsetters) for default values.
+--
+-- Once you have a @ProcessConfig@ you can launch a process from it
+-- using the functions in the section [Launch a
+-- process](#launchaprocess).
 --
 -- @since 0.1.0.0
 data ProcessConfig stdin stdout stderr = ProcessConfig
@@ -241,7 +253,8 @@ data StreamType = STInput | STOutput
 -- 3. A cleanup action which will be run on the stream once the
 -- process terminates
 --
--- See examples below.
+-- To create a @StreamSpec@ see the section [Stream
+-- specs](#streamspecs).
 --
 -- @since 0.1.0.0
 data StreamSpec (streamType :: StreamType) a = StreamSpec
@@ -273,6 +286,9 @@ instance Applicative Cleanup where
 
 -- | A running process. The three type parameters provide the type of
 -- the standard input, standard output, and standard error streams.
+--
+-- To interact with a @Process@ use the functions from the section
+-- [Interact with a process](#interactwithaprocess).
 --
 -- @since 0.1.0.0
 data Process stdin stdout stderr = Process
@@ -841,6 +857,9 @@ withProcessTerm config = bracket (startProcess config) stopProcess
 -- exit, and only kill it with 'stopProcess' in the event that the
 -- inner function throws an exception.
 --
+-- To interact with a @Process@ use the functions from the section
+-- [Interact with a process](#interactwithaprocess).
+--
 -- @since 0.2.5.0
 withProcessWait :: (MonadUnliftIO m)
   => ProcessConfig stdin stdout stderr
@@ -865,6 +884,9 @@ withProcess = withProcessTerm
 {-# DEPRECATED withProcess "Please consider using withProcessWait, or instead use withProcessTerm" #-}
 
 -- | Same as 'withProcessTerm', but also calls 'checkExitCode'
+--
+-- To interact with a @Process@ use the functions from the section
+-- [Interact with a process](#interactwithaprocess).
 --
 -- @since 0.2.5.0
 withProcessTerm_ :: (MonadUnliftIO m)
