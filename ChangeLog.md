@@ -1,5 +1,9 @@
 # ChangeLog for typed-process
 
+## 0.2.7.0
+
+* Include empty argument in the show instance.
+
 ## 0.2.6.3
 
 * Doc improvements
