@@ -166,3 +166,7 @@ spec = do
 
         let expected = "stdout\nstderr\nstdout\n"
         L.take (L.length expected) lbs1 `shouldBe` expected
+
+    it "empty param are showed" $
+      let expected = "Raw command: podman exec --detach-keys \"\" ctx bash\n"
+       in show (proc "podman" ["exec", "--detach-keys", "", "ctx", "bash"]) `shouldBe` expected
