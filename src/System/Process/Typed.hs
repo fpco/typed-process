@@ -226,6 +226,7 @@ instance Show (ProcessConfig stdin stdout stderr) where
       where
         escape x
             | any (`elem` " \\\"'") x = show x
+            | x == "" = "\"\""
             | otherwise = x
 instance (stdin ~ (), stdout ~ (), stderr ~ ())
   => IsString (ProcessConfig stdin stdout stderr) where
