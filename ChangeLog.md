@@ -1,5 +1,7 @@
 # ChangeLog for typed-process
 
+## 0.2.8.0
+
 * Re-export `ExitCode`, `ExitSuccess` and `ExitFailure`.
 
 ## 0.2.7.0
