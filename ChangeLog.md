@@ -1,5 +1,7 @@
 # ChangeLog for typed-process
 
+* Re-export `ExitCode`, `ExitSuccess` and `ExitFailure`.
+
 ## 0.2.7.0
 
 * Include empty argument in the show instance.
