@@ -116,6 +116,10 @@ module System.Process.Typed
       -- * Exceptions
     , ExitCodeException (..)
     , ByteStringOutputException (..)
+
+      -- * Re-exports
+    , ExitCode (..)
+
       -- * Unsafe functions
     , unsafeProcessHandle
       -- * Deprecated functions
@@ -136,7 +140,7 @@ import System.IO.Error (isPermissionError)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (async, asyncWithUnmask, cancel, waitCatch)
 import Control.Concurrent.STM (newEmptyTMVarIO, atomically, putTMVar, TMVar, readTMVar, tryReadTMVar, STM, tryPutTMVar, throwSTM, catchSTM)
-import System.Exit (ExitCode (ExitSuccess))
+import System.Exit (ExitCode (ExitSuccess, ExitFailure))
 import System.Process.Typed.Internal
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as L8
