@@ -7,7 +7,7 @@ Stackage](https://www.stackage.org/package/typed-process).
 
 This library provides the ability to launch and interact with external
 processes. It wraps around the
-[process library](https://haskell-lang.org/library/process), and
+[process library](https://hackage.haskell.org/package/process), and
 intends to improve upon it by:
 
 1. Using type variables to represent the standard streams, making them
