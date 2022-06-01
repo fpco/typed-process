@@ -119,7 +119,7 @@ module System.Process.Typed
 
       -- * Re-exports
     , ExitCode (..)
-    , StdStream (..)
+    , P.StdStream (..)
 
       -- * Unsafe functions
     , unsafeProcessHandle
@@ -142,7 +142,6 @@ import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (async, asyncWithUnmask, cancel, waitCatch)
 import Control.Concurrent.STM (newEmptyTMVarIO, atomically, putTMVar, TMVar, readTMVar, tryReadTMVar, STM, tryPutTMVar, throwSTM, catchSTM)
 import System.Exit (ExitCode (ExitSuccess, ExitFailure))
-import System.Process (StdStream (..))
 import System.Process.Typed.Internal
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as L8
