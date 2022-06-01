@@ -1,5 +1,7 @@
 # ChangeLog for typed-process
 
+* Re-export `StdStream`
+
 ## 0.2.8.0
 
 * Re-export `ExitCode`, `ExitSuccess` and `ExitFailure`.
