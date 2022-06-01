@@ -1,5 +1,7 @@
 # ChangeLog for typed-process
 
+## 0.2.9.0
+
 * Re-export `StdStream`
 
 ## 0.2.8.0
