@@ -119,6 +119,7 @@ module System.Process.Typed
 
       -- * Re-exports
     , ExitCode (..)
+    , P.StdStream (..)
 
       -- * Unsafe functions
     , unsafeProcessHandle
