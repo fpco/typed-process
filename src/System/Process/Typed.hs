@@ -624,7 +624,7 @@ mkManagedStreamSpec ss f = StreamSpec ss (\pc mh -> Cleanup (f pc mh))
 --
 -- @since 0.1.0.0
 inherit :: StreamSpec anyStreamType ()
-inherit = mkStreamSpec P.Inherit (\_ Nothing -> pure ((), return ()))
+inherit = mkStreamSpec P.Inherit (\_ _ -> pure ((), return ()))
 
 -- | A stream spec which is empty when used for for input and discards
 -- output.  Note this requires your platform's null device to be
@@ -649,7 +649,7 @@ nullStream = mkManagedStreamSpec opener cleanup
 -- @since 0.1.0.0
 closed :: StreamSpec anyStreamType ()
 #if MIN_VERSION_process(1, 4, 0)
-closed = mkStreamSpec P.NoStream (\_ Nothing -> pure ((), return ()))
+closed = mkStreamSpec P.NoStream (\_ _ -> pure ((), return ()))
 #else
 closed = mkPipeStreamSpec (\_ h -> ((), return ()) <$ hClose h)
 #endif
@@ -720,7 +720,7 @@ createPipe = mkPipeStreamSpec $ \_ h -> return (h, hClose h)
 --
 -- @since 0.1.0.0
 useHandleOpen :: Handle -> StreamSpec anyStreamType ()
-useHandleOpen h = mkStreamSpec (P.UseHandle h) $ \_ Nothing -> return ((), return ())
+useHandleOpen h = mkStreamSpec (P.UseHandle h) $ \_ _ -> return ((), return ())
 
 -- | Use the provided 'Handle' for the child process, and when the
 -- process exits, close it. If you have no reason to keep the 'Handle'
@@ -728,7 +728,7 @@ useHandleOpen h = mkStreamSpec (P.UseHandle h) $ \_ Nothing -> return ((), retur
 --
 -- @since 0.1.0.0
 useHandleClose :: Handle -> StreamSpec anyStreamType ()
-useHandleClose h = mkStreamSpec (P.UseHandle h) $ \_ Nothing -> return ((), hClose h)
+useHandleClose h = mkStreamSpec (P.UseHandle h) $ \_ _ -> return ((), hClose h)
 
 -- | Launch a process based on the given 'ProcessConfig'. You should
 -- ensure that you call 'stopProcess' on the result. It's usually
@@ -1080,7 +1080,7 @@ withProcessInterleave pc inner =
         -- Use the writer end of the pipe for both stdout and stderr. For
         -- the stdout half, use byteStringFromHandle to read the data into
         -- a lazy ByteString in memory.
-        let pc' = setStdout (mkStreamSpec (P.UseHandle writeEnd) (\pc'' Nothing -> byteStringFromHandle pc'' readEnd))
+        let pc' = setStdout (mkStreamSpec (P.UseHandle writeEnd) (\pc'' _ -> byteStringFromHandle pc'' readEnd))
                 $ setStderr (useHandleOpen writeEnd)
                   pc
         withProcess pc' $ \p -> do
