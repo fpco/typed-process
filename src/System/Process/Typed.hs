@@ -651,7 +651,7 @@ closed :: StreamSpec anyStreamType ()
 #if MIN_VERSION_process(1, 4, 0)
 closed = mkStreamSpec P.NoStream (\_ Nothing -> pure ((), return ()))
 #else
-closed = mkStreamSpec P.CreatePipe (\_ (Just h) -> ((), return ()) <$ hClose h)
+closed = mkPipeStreamSpec (\_ h -> ((), return ()) <$ hClose h)
 #endif
 
 -- | An input stream spec which sets the input to the given
@@ -660,7 +660,7 @@ closed = mkStreamSpec P.CreatePipe (\_ (Just h) -> ((), return ()) <$ hClose h)
 --
 -- @since 0.1.0.0
 byteStringInput :: L.ByteString -> StreamSpec 'STInput ()
-byteStringInput lbs = mkStreamSpec P.CreatePipe $ \_ (Just h) -> do
+byteStringInput lbs = mkPipeStreamSpec $ \_ h -> do
     void $ async $ do
         L.hPut h lbs
         hClose h
@@ -680,7 +680,7 @@ byteStringInput lbs = mkStreamSpec P.CreatePipe $ \_ (Just h) -> do
 --
 -- @since 0.1.0.0
 byteStringOutput :: StreamSpec 'STOutput (STM L.ByteString)
-byteStringOutput = mkStreamSpec P.CreatePipe $ \pc (Just h) -> byteStringFromHandle pc h
+byteStringOutput = mkPipeStreamSpec $ \pc h -> byteStringFromHandle pc h
 
 -- | Helper function (not exposed) for both 'byteStringOutput' and
 -- 'withProcessInterleave'. This will consume all of the output from
@@ -711,7 +711,7 @@ byteStringFromHandle pc h = do
 --
 -- @since 0.1.0.0
 createPipe :: StreamSpec anyStreamType Handle
-createPipe = mkStreamSpec P.CreatePipe $ \_ (Just h) -> return (h, hClose h)
+createPipe = mkPipeStreamSpec $ \_ h -> return (h, hClose h)
 
 -- | Use the provided 'Handle' for the child process, and when the
 -- process exits, do /not/ close it. This is useful if, for example,
