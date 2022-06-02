@@ -71,6 +71,7 @@ module System.Process.Typed
 
     -- ** Create your own stream spec
     , mkStreamSpec
+    , mkPipeStreamSpec
 
       -- | #launchaprocess#
 
@@ -580,6 +581,9 @@ setChildUserInherit pc = pc { pcChildUser = Nothing }
 -- * Returns the actual stream value @a@, as well as a cleanup
 -- function to be run when calling 'stopProcess'.
 --
+-- If making a 'StreamSpec' with 'P.CreatePipe', prefer 'mkPipeStreamSpec',
+-- which encodes the invariant that a 'Handle' is created.
+--
 -- @since 0.1.0.0
 mkStreamSpec :: P.StdStream
              -- ^
@@ -587,6 +591,23 @@ mkStreamSpec :: P.StdStream
              -- ^
              -> StreamSpec streamType a
 mkStreamSpec ss f = mkManagedStreamSpec ($ ss) f
+
+-- | Create a new 'P.CreatePipe' 'StreamSpec' from the given function.
+-- This function:
+--
+-- * Takes as input the @Handle@ returned by the 'P.createProcess' function.
+-- See 'P.createProcess' for more details.
+--
+-- * Returns the actual stream value @a@, as well as a cleanup
+-- function to be run when calling 'stopProcess'.
+--
+-- @since 0.2.10.0
+mkPipeStreamSpec :: (ProcessConfig () () () -> Handle -> IO (a, IO ()))
+                 -> StreamSpec streamType a
+mkPipeStreamSpec f = mkStreamSpec P.CreatePipe $ \pc mh ->
+    case mh of
+        Just h -> f pc h
+        Nothing -> error "Invariant violation: making StreamSpec with CreatePipe unexpectedly did not return a Handle"
 
 -- | Create a new 'StreamSpec' from a function that accepts a
 -- 'P.StdStream' and a helper function.  This function is the same as

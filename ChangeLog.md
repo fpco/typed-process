@@ -1,5 +1,9 @@
 # ChangeLog for typed-process
 
+## 0.2.10.0
+
+* Add `mkPipeStreamSpec`
+
 ## 0.2.9.0
 
 * Re-export `StdStream`
