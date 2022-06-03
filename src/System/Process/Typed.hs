@@ -603,7 +603,9 @@ mkStreamSpec ss f = mkManagedStreamSpec ($ ss) f
 --
 -- @since 0.2.10.0
 mkPipeStreamSpec :: (ProcessConfig () () () -> Handle -> IO (a, IO ()))
+                 -- ^
                  -> StreamSpec streamType a
+                 -- ^
 mkPipeStreamSpec f = mkStreamSpec P.CreatePipe $ \pc mh ->
     case mh of
         Just h -> f pc h
