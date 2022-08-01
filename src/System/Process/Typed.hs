@@ -1277,7 +1277,7 @@ instance Exception ByteStringOutputException
 -- This method is considered unsafe because the actions it performs on
 -- the underlying process may overlap with the functionality that
 -- @typed-process@ provides. For example the user should not call
--- 'System.Process.waitForProcess' on the process handle as eiter
+-- 'System.Process.waitForProcess' on the process handle as either
 -- 'System.Process.waitForProcess' or 'stopProcess' will lock.
 -- Additionally, even if process was terminated by the
 -- 'System.Process.terminateProcess' or by sending signal,
