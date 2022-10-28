@@ -22,6 +22,12 @@ dependencies:
 - transformers
 - unliftio-core
 
+flags:
+  smp:
+    description: Use flags that depend on GHC supporting a multicore runtime (tests only)
+    default: True
+    manual: True
+
 library:
   source-dirs: src
   when:
@@ -32,10 +38,16 @@ tests:
   typed-process-test:
     main: Spec.hs
     source-dirs: test
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+    when:
+    - condition: flag(smp)
+      then:
+        ghc-options:
+        - -threaded
+        - -rtsopts
+        - -with-rtsopts=-N
+      else:
+        ghc-options:
+        - -threaded
     dependencies:
     - base64-bytestring
     - hspec
