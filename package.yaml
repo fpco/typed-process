@@ -36,6 +36,8 @@ tests:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    build-tools:
+    - hspec-discover:hspec-discover >=2 && <3
     dependencies:
     - base64-bytestring
     - hspec
@@ -44,6 +46,8 @@ tests:
   typed-process-test-single-threaded:
     main: Spec.hs
     source-dirs: test
+    build-tools:
+    - hspec-discover:hspec-discover >=2 && <3
     dependencies:
     - base64-bytestring
     - hspec
