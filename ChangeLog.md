@@ -2,7 +2,7 @@
 
 ## 0.2.11.0
 
-* Expose `System.Process.Typed.Internal`
+* Expose more from `System.Process.Typed.Internal`
 
 ## 0.2.10.0
 
