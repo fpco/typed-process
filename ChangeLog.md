@@ -1,5 +1,9 @@
 # ChangeLog for typed-process
 
+## 0.2.11.0
+
+* Expose `System.Process.Typed.Internal`
+
 ## 0.2.10.0
 
 * Add `mkPipeStreamSpec`
