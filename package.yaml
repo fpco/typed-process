@@ -29,7 +29,8 @@ library:
     cpp-options: -DWINDOWS
 
 tests:
-  typed-process-test:
+  typed-process-test: &typed-process-test
+    build-tools: hspec-discover
     main: Spec.hs
     source-dirs: test
     ghc-options:
@@ -38,14 +39,9 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - base64-bytestring
-    - hspec
+    - hspec == 2.*
     - temporary
     - typed-process
   typed-process-test-single-threaded:
-    main: Spec.hs
-    source-dirs: test
-    dependencies:
-    - base64-bytestring
-    - hspec
-    - temporary
-    - typed-process
+    <<: *typed-process-test
+    ghc-options: []
