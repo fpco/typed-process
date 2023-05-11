@@ -5,6 +5,9 @@
 * Ensure that `waitForProcess` is never called more than once
   [#70](https://github.com/fpco/typed-process/pull/70)
 
+* Don't deadlock on `delegate_ctlc`
+  [#73](https://github.com/fpco/typed-process/pull/73)
+
 ## 0.2.11.0
 
 * Expose more from `System.Process.Typed.Internal`
