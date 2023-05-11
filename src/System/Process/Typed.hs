@@ -349,7 +349,7 @@ withProcess :: (MonadUnliftIO m)
   -> (Process stdin stdout stderr -> m a)
   -> m a
 withProcess = withProcessTerm
-{-# DEPRECATED withProcess "Please consider using withProcessWait, or instead use withProcessTerm" #-}
+{-# DEPRECATED withProcess "Please consider using `withProcessWait`, or instead use `withProcessTerm`" #-}
 
 -- | Same as 'withProcessTerm', but also calls 'checkExitCode'
 --
@@ -389,7 +389,7 @@ withProcess_ :: (MonadUnliftIO m)
   -> (Process stdin stdout stderr -> m a)
   -> m a
 withProcess_ = withProcessTerm_
-{-# DEPRECATED withProcess_ "Please consider using withProcessWait_, or instead use withProcessTerm_" #-}
+{-# DEPRECATED withProcess_ "Please consider using `withProcessWait_`, or instead use `withProcessTerm_`" #-}
 
 -- | Run a process, capture its standard output and error as a
 -- 'L.ByteString', wait for it to complete, and then return its exit
