@@ -257,8 +257,7 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
                       -- then call waitForProcess ourselves
                       Left _ -> do
                           eres <- try $ P.terminateProcess pHandle
-                          ec <-
-                            case eres of
+                          case eres of
                               Left e
                                 -- On Windows, with the single-threaded runtime, it
                                 -- seems that if a process has already exited, the
@@ -272,9 +271,10 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
                                 -- Recommendation: always use the multi-threaded
                                 -- runtime!
                                 | isPermissionError e && not multiThreadedRuntime && isWindows ->
-                                  P.waitForProcess pHandle
-                                | otherwise -> throwIO e >> P.waitForProcess pHandle
-                              Right () -> P.waitForProcess pHandle
+                                  pure ()
+                                | otherwise -> throwIO e
+                              Right () -> pure ()
+                          ec <- P.waitForProcess pHandle
                           success <- atomically $ tryPutTMVar pExitCode ec
                           evaluate $ assert success ()
 
