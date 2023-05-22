@@ -256,24 +256,7 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
                       -- Process didn't exit yet, let's terminate it and
                       -- then call waitForProcess ourselves
                       Left _ -> do
-                          eres <- try $ P.terminateProcess pHandle
-                          case eres of
-                              Left e
-                                -- On Windows, with the single-threaded runtime, it
-                                -- seems that if a process has already exited, the
-                                -- call to terminateProcess will fail with a
-                                -- permission denied error. To work around this, we
-                                -- catch this exception and then immediately
-                                -- waitForProcess. There's a chance that there may be
-                                -- other reasons for this permission error to appear,
-                                -- in which case this code may allow us to wait too
-                                -- long for a child process instead of erroring out.
-                                -- Recommendation: always use the multi-threaded
-                                -- runtime!
-                                | isPermissionError e && not multiThreadedRuntime && isWindows ->
-                                  pure ()
-                                | otherwise -> throwIO e
-                              Right () -> pure ()
+                          terminateProcess pHandle
                           ec <- P.waitForProcess pHandle
                           success <- atomically $ tryPutTMVar pExitCode ec
                           evaluate $ assert success ()
@@ -281,6 +264,26 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
           return Process {..}
   where
     pConfig = clearStreams pConfig'
+
+    terminateProcess pHandle = do
+      eres <- try $ P.terminateProcess pHandle
+      case eres of
+          Left e
+            -- On Windows, with the single-threaded runtime, it
+            -- seems that if a process has already exited, the
+            -- call to terminateProcess will fail with a
+            -- permission denied error. To work around this, we
+            -- catch this exception and then immediately
+            -- waitForProcess. There's a chance that there may be
+            -- other reasons for this permission error to appear,
+            -- in which case this code may allow us to wait too
+            -- long for a child process instead of erroring out.
+            -- Recommendation: always use the multi-threaded
+            -- runtime!
+            | isPermissionError e && not multiThreadedRuntime && isWindows ->
+              pure ()
+            | otherwise -> throwIO e
+          Right () -> pure ()
 
 foreign import ccall unsafe "rtsSupportsBoundThreads"
   multiThreadedRuntime :: Bool
