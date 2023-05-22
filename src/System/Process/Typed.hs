@@ -273,7 +273,7 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
                                 -- runtime!
                                 | isPermissionError e && not multiThreadedRuntime && isWindows ->
                                   P.waitForProcess pHandle
-                                | otherwise -> throwIO e
+                                | otherwise -> throwIO e >> P.waitForProcess pHandle
                               Right () -> P.waitForProcess pHandle
                           success <- atomically $ tryPutTMVar pExitCode ec
                           evaluate $ assert success ()
