@@ -178,7 +178,7 @@ instance Show (Process stdin stdout stderr) where
 -- @since 0.1.0.0
 startProcess :: MonadIO m
              => ProcessConfig stdin stdout stderr
-             -- ^
+             -- ^ 
              -> m (Process stdin stdout stderr)
 startProcess pConfig'@ProcessConfig {..} = liftIO $ do
     ssStream pcStdin $ \realStdin ->
@@ -317,9 +317,9 @@ stopProcess = liftIO . pCleanup
 -- @since 0.2.5.0
 withProcessTerm :: (MonadUnliftIO m)
   => ProcessConfig stdin stdout stderr
-  -- ^
+  -- ^ 
   -> (Process stdin stdout stderr -> m a)
-  -- ^
+  -- ^ 
   -> m a
 withProcessTerm config = bracket (startProcess config) stopProcess
 
@@ -334,9 +334,9 @@ withProcessTerm config = bracket (startProcess config) stopProcess
 -- @since 0.2.5.0
 withProcessWait :: (MonadUnliftIO m)
   => ProcessConfig stdin stdout stderr
-  -- ^
+  -- ^ 
   -> (Process stdin stdout stderr -> m a)
-  -- ^
+  -- ^ 
   -> m a
 withProcessWait config f =
   bracket
@@ -362,9 +362,9 @@ withProcess = withProcessTerm
 -- @since 0.2.5.0
 withProcessTerm_ :: (MonadUnliftIO m)
   => ProcessConfig stdin stdout stderr
-  -- ^
+  -- ^ 
   -> (Process stdin stdout stderr -> m a)
-  -- ^
+  -- ^ 
   -> m a
 withProcessTerm_ config = bracket
     (startProcess config)
@@ -375,9 +375,9 @@ withProcessTerm_ config = bracket
 -- @since 0.2.5.0
 withProcessWait_ :: (MonadUnliftIO m)
   => ProcessConfig stdin stdout stderr
-  -- ^
+  -- ^ 
   -> (Process stdin stdout stderr -> m a)
-  -- ^
+  -- ^ 
   -> m a
 withProcessWait_ config f = bracket
     (startProcess config)
@@ -404,7 +404,7 @@ withProcess_ = withProcessTerm_
 -- @since 0.1.0.0
 readProcess :: MonadIO m
             => ProcessConfig stdin stdoutIgnored stderrIgnored
-            -- ^
+            -- ^ 
             -> m (ExitCode, L.ByteString, L.ByteString)
 readProcess pc =
     liftIO $ withProcess pc' $ \p -> atomically $ (,,)
@@ -423,7 +423,7 @@ readProcess pc =
 -- @since 0.1.0.0
 readProcess_ :: MonadIO m
              => ProcessConfig stdin stdoutIgnored stderrIgnored
-             -- ^
+             -- ^ 
              -> m (L.ByteString, L.ByteString)
 readProcess_ pc =
     liftIO $ withProcess pc' $ \p -> atomically $ do
@@ -444,7 +444,7 @@ readProcess_ pc =
 readProcessStdout
   :: MonadIO m
   => ProcessConfig stdin stdoutIgnored stderr
-  -- ^
+  -- ^ 
   -> m (ExitCode, L.ByteString)
 readProcessStdout pc =
     liftIO $ withProcess pc' $ \p -> atomically $ (,)
@@ -462,7 +462,7 @@ readProcessStdout pc =
 readProcessStdout_
   :: MonadIO m
   => ProcessConfig stdin stdoutIgnored stderr
-  -- ^
+  -- ^ 
   -> m L.ByteString
 readProcessStdout_ pc =
     liftIO $ withProcess pc' $ \p -> atomically $ do
@@ -481,7 +481,7 @@ readProcessStdout_ pc =
 readProcessStderr
   :: MonadIO m
   => ProcessConfig stdin stdout stderrIgnored
-  -- ^
+  -- ^ 
   -> m (ExitCode, L.ByteString)
 readProcessStderr pc =
     liftIO $ withProcess pc' $ \p -> atomically $ (,)
@@ -499,7 +499,7 @@ readProcessStderr pc =
 readProcessStderr_
   :: MonadIO m
   => ProcessConfig stdin stdout stderrIgnored
-  -- ^
+  -- ^ 
   -> m L.ByteString
 readProcessStderr_ pc =
     liftIO $ withProcess pc' $ \p -> atomically $ do
@@ -513,9 +513,9 @@ readProcessStderr_ pc =
 
 withProcessInterleave :: (MonadUnliftIO m)
   => ProcessConfig stdin stdoutIgnored stderrIgnored
-  -- ^
+  -- ^ 
   -> (Process stdin (STM L.ByteString) () -> m a)
-  -- ^
+  -- ^ 
   -> m a
 withProcessInterleave pc inner =
     -- Create a pipe to be shared for both stdout and stderr
@@ -541,7 +541,7 @@ withProcessInterleave pc inner =
 readProcessInterleaved
   :: MonadIO m
   => ProcessConfig stdin stdoutIgnored stderrIgnored
-  -- ^
+  -- ^ 
   -> m (ExitCode, L.ByteString)
 readProcessInterleaved pc =
     liftIO $
@@ -559,9 +559,9 @@ readProcessInterleaved pc =
 readProcessInterleaved_
   :: MonadIO m
   => ProcessConfig stdin stdoutIgnored stderrIgnored
-  -- ^
+  -- ^ 
   -> m L.ByteString
-  -- ^
+  -- ^ 
 readProcessInterleaved_ pc =
     liftIO $
     withProcessInterleave pc $ \p -> atomically $ do
@@ -577,9 +577,9 @@ readProcessInterleaved_ pc =
 -- @since 0.1.0.0
 runProcess :: MonadIO m
            => ProcessConfig stdin stdout stderr
-           -- ^
+           -- ^ 
            -> m ExitCode
-           -- ^
+           -- ^ 
 runProcess pc = liftIO $ withProcess pc waitExitCode
 
 -- | Same as 'runProcess', but instead of returning the
@@ -588,7 +588,7 @@ runProcess pc = liftIO $ withProcess pc waitExitCode
 -- @since 0.1.0.0
 runProcess_ :: MonadIO m
             => ProcessConfig stdin stdout stderr
-            -- ^
+            -- ^ 
             -> m ()
 runProcess_ pc = liftIO $ withProcess pc checkExitCode
 
