@@ -35,11 +35,9 @@ tests:
     source-dirs: test
     ghc-options:
     - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
     dependencies:
     - base64-bytestring
-    - hspec == 2.*
+    - hspec >= 2.8.3 && < 3
     - temporary
     - typed-process
   typed-process-test-single-threaded:
