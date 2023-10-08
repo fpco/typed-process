@@ -18,6 +18,22 @@ jobs:
         #exclude:
         #  - os: windows-latest
         #    resolver: nightly
+        # lts-15 on windows-latest says
+        #
+        # Access violation in generated code when writing 0x0
+        #
+        # Attempting to reconstruct a stack trace...
+        #
+        #   Frame	Code address
+        # * 0x461da80	0x37f7b66 C:\Users\runneradmin\AppData\Local\Programs\stack\x86_64-windows\ghc-8.8.3\bin\ghc.exe+0x33f7b66
+        # * 0x461da88	0x3277bb9 C:\Users\runneradmin\AppData\Local\Programs\stack\x86_64-windows\ghc-8.8.3\bin\ghc.exe+0x2e77bb9
+        # * 0x461da90	0x5
+        # * 0x461da98	0x5
+        # * 0x461daa0	0x3d7dc22 C:\Users\runneradmin\AppData\Local\Programs\stack\x86_64-windows\ghc-8.8.3\bin\ghc.exe+0x397dc22
+        # * 0x461daa8	0x65cc9b0
+        exclude:
+           - os: windows-latest
+             resolver: lts-15
 
     steps:
       - name: Clone project
