@@ -23,6 +23,9 @@ jobs:
       - name: Clone project
         uses: actions/checkout@v2
 
+      # This does not seem to cache on Windows, because ~/.stack does
+      # not exist on Windows. I don't know how caching on Windows is
+      # supposed to work.
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
