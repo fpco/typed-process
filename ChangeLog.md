@@ -1,5 +1,9 @@
 # ChangeLog for typed-process
 
+## 0.2.11.1
+
+* No user-visible changes
+
 ## 0.2.11.0
 
 * Expose more from `System.Process.Typed.Internal`
