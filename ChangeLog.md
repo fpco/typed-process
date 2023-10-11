@@ -1,5 +1,10 @@
 # ChangeLog for typed-process
 
+## 0.2.12.0
+
+* Ensure that `waitForProcess` is never called more than once
+  [#70](https://github.com/fpco/typed-process/pull/70)
+
 ## 0.2.11.0
 
 * Expose more from `System.Process.Typed.Internal`

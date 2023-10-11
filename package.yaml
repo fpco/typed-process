@@ -1,5 +1,5 @@
 name:        typed-process
-version:     0.2.11.0
+version:     0.2.12.0
 synopsis:    Run external processes, with strong typing of streams
 description: Please see the tutorial at <https://github.com/fpco/typed-process#readme>
 category:    System
