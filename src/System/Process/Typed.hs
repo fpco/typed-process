@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -130,13 +131,15 @@ module System.Process.Typed
     ) where
 
 import Control.Exception hiding (bracket, finally)
+import Control.Monad ((>=>), guard)
 import Control.Monad.IO.Class
 import qualified System.Process as P
 import System.IO (hClose)
 import System.IO.Error (isPermissionError)
 import Control.Concurrent (threadDelay)
-import Control.Concurrent.Async (asyncWithUnmask, cancel, waitCatch)
-import Control.Concurrent.STM (newEmptyTMVarIO, atomically, putTMVar, TMVar, readTMVar, tryReadTMVar, STM, tryPutTMVar, throwSTM, catchSTM)
+import Control.Concurrent.Async (Async, asyncWithUnmask)
+import qualified Control.Concurrent.Async as Async
+import Control.Concurrent.STM (newEmptyTMVarIO, atomically, putTMVar, TMVar, readTMVar, tryReadTMVar, STM, throwSTM, catchSTM)
 import System.Exit (ExitCode (ExitSuccess, ExitFailure))
 import System.Process.Typed.Internal
 import qualified Data.ByteString.Lazy as L
@@ -165,7 +168,7 @@ data Process stdin stdout stderr = Process
     , pStdout :: !stdout
     , pStderr :: !stderr
     , pHandle :: !P.ProcessHandle
-    , pExitCode :: !(TMVar ExitCode)
+    , pExitCode :: !(Async ExitCode)
     }
 instance Show (Process stdin stdout stderr) where
     show p = "Running process: " ++ show (pConfig p)
@@ -219,8 +222,7 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
               <*> ssCreate pcStdout pConfig moutH
               <*> ssCreate pcStderr pConfig merrH
 
-          pExitCode <- newEmptyTMVarIO
-          waitingThread <- asyncWithUnmask $ \unmask -> do
+          pExitCode <- asyncWithUnmask $ \unmask -> do
               ec <- unmask $ -- make sure the masking state from a bracket isn't inherited
                 if multiThreadedRuntime
                   then P.waitForProcess pHandle
@@ -236,30 +238,20 @@ startProcess pConfig'@ProcessConfig {..} = liftIO $ do
                             Nothing -> loop $ min maxDelay (delay * 2)
                             Just ec -> pure ec
                     loop minDelay
-              atomically $ putTMVar pExitCode ec
               return ec
 
+          let waitForProcess = Async.wait pExitCode :: IO ExitCode
           let pCleanup = pCleanup1 `finally` do
-                  -- First: stop calling waitForProcess, so that we can
-                  -- avoid race conditions where the process is removed from
-                  -- the system process table while we're trying to
-                  -- terminate it.
-                  cancel waitingThread
-
-                  -- Now check if the process had already exited
-                  eec <- waitCatch waitingThread
-
-                  case eec of
+                  _ :: ExitCode <- Async.poll pExitCode >>= \ case
                       -- Process already exited, nothing to do
-                      Right _ec -> return ()
+                      Just r -> either throwIO return r
 
                       -- Process didn't exit yet, let's terminate it and
                       -- then call waitForProcess ourselves
-                      Left _ -> do
+                      Nothing -> do
                           terminateProcess pHandle
-                          ec <- P.waitForProcess pHandle
-                          success <- atomically $ tryPutTMVar pExitCode ec
-                          evaluate $ assert success ()
+                          waitForProcess
+                  return ()
 
           return Process {..}
   where
@@ -602,7 +594,7 @@ waitExitCode = liftIO . atomically . waitExitCodeSTM
 --
 -- @since 0.1.0.0
 waitExitCodeSTM :: Process stdin stdout stderr -> STM ExitCode
-waitExitCodeSTM = readTMVar . pExitCode
+waitExitCodeSTM = Async.waitSTM . pExitCode
 
 -- | Check if a process has exited and, if so, return its 'ExitCode'.
 --
@@ -614,7 +606,9 @@ getExitCode = liftIO . atomically . getExitCodeSTM
 --
 -- @since 0.1.0.0
 getExitCodeSTM :: Process stdin stdout stderr -> STM (Maybe ExitCode)
-getExitCodeSTM = tryReadTMVar . pExitCode
+getExitCodeSTM p = Async.pollSTM (pExitCode p) >>= \ case
+  Nothing -> return Nothing
+  Just er -> either throwSTM (return . Just) er
 
 -- | Wait for a process to exit, and ensure that it exited
 -- successfully. If not, throws an 'ExitCodeException'.
@@ -631,7 +625,7 @@ checkExitCode = liftIO . atomically . checkExitCodeSTM
 -- @since 0.1.0.0
 checkExitCodeSTM :: Process stdin stdout stderr -> STM ()
 checkExitCodeSTM p = do
-    ec <- readTMVar (pExitCode p)
+    ec <- Async.waitSTM (pExitCode p)
     case ec of
         ExitSuccess -> return ()
         _ -> throwSTM ExitCodeException

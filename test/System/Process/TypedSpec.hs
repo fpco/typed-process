@@ -5,6 +5,7 @@ module System.Process.TypedSpec (spec) where
 import System.Process.Typed
 import System.Process.Typed.Internal
 import System.IO
+import Control.Exception
 import Control.Concurrent.Async (Concurrently (..))
 import Control.Concurrent.STM (atomically)
 import Test.Hspec
@@ -170,3 +171,12 @@ spec = do
     it "empty param are showed" $
       let expected = "Raw command: podman exec --detach-keys \"\" ctx bash\n"
        in show (proc "podman" ["exec", "--detach-keys", "", "ctx", "bash"]) `shouldBe` expected
+
+    describe "stopProcess" $ do
+        it "never calls waitForProcess more than once (fix for #69)" $ do
+            -- https://github.com/fpco/typed-process/issues/70
+            let config = setStdout createPipe (proc "echo" ["foo"])
+            withProcessWait config $ \p -> do
+              _ <- S.hGetContents (getStdout p)
+              throwIO DivideByZero
+            `shouldThrow` (== DivideByZero)
