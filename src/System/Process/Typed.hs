@@ -664,6 +664,18 @@ getStdout = pStdout
 getStderr :: Process stdin stdout stderr -> stderr
 getStderr = pStderr
 
+-- | Get a process's configuration.
+--
+-- This is useful for constructing 'ExitCodeException's.
+--
+-- Note that the stdin, stdout, and stderr streams are stored in the 'Process',
+-- not the 'ProcessConfig', so the returned 'ProcessConfig' will always have
+-- empty stdin, stdout, and stderr values.
+--
+-- @since 0.2.12.0
+getProcessConfig :: Process stdin stdout stderr -> ProcessConfig () () ()
+getProcessConfig = pConfig
+
 -- | Take 'System.Process.ProcessHandle' out of the 'Process'.
 -- This method is needed in cases one need to use low level functions
 -- from the @process@ package. Use cases for this method are:
