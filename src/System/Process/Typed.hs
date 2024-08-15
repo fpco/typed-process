@@ -109,6 +109,9 @@ module System.Process.Typed
     , checkExitCode
     , checkExitCodeSTM
 
+      -- ** Process ID
+    , getPid
+
       -- ** Process streams
     , getStdin
     , getStdout
@@ -121,6 +124,7 @@ module System.Process.Typed
       -- * Re-exports
     , ExitCode (..)
     , P.StdStream (..)
+    , P.Pid
 
       -- * Unsafe functions
     , unsafeProcessHandle
@@ -640,6 +644,17 @@ checkExitCodeSTM p = do
             , eceStdout = L.empty
             , eceStderr = L.empty
             }
+
+-- | Returns the PID (process ID) of a subprocess.
+--
+-- 'Nothing' is returned if the underlying 'P.ProcessHandle' was already closed.
+-- Otherwise a PID is returned that remains valid as long as the handle is
+-- open. The operating system may reuse the PID as soon as the last handle to
+-- the process is closed.
+--
+-- @since 0.2.12.0
+getPid :: Process stdin stdout stderr -> IO (Maybe P.Pid)
+getPid = P.getPid . pHandle
 
 -- | Internal
 clearStreams :: ProcessConfig stdin stdout stderr -> ProcessConfig () () ()
