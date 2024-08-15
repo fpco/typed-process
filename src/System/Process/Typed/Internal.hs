@@ -590,12 +590,16 @@ useHandleOpen h = mkStreamSpec (P.UseHandle h) $ \_ _ -> return ((), return ())
 useHandleClose :: Handle -> StreamSpec anyStreamType ()
 useHandleClose h = mkStreamSpec (P.UseHandle h) $ \_ _ -> return ((), hClose h)
 
--- | Exception thrown by 'checkExitCode' in the event of a non-success
--- exit code. Note that 'checkExitCode' is called by other functions
--- as well, like 'runProcess_' or 'readProcess_'.
+-- | Exception thrown by 'System.Process.Typed.checkExitCode' in the event of a
+-- non-success exit code. Note that 'System.Process.Typed.checkExitCode' is
+-- called by other functions as well, like 'System.Process.Typed.runProcess_'
+-- or 'System.Process.Typed.readProcess_'.
 --
 -- Note that several functions that throw an 'ExitCodeException' intentionally do not populate 'eceStdout' or 'eceStderr'.
 -- This prevents unbounded memory usage for large stdout and stderrs.
+--
+-- Functions which do include 'eceStdout' or 'eceStderr' (like
+-- 'System.Process.Typed.readProcess_') state so in their documentation.
 --
 -- @since 0.1.0.0
 data ExitCodeException = ExitCodeException

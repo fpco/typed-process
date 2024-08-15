@@ -116,6 +116,8 @@ module System.Process.Typed
 
       -- * Exceptions
     , ExitCodeException (..)
+    , exitCodeExceptionWithOutput
+    , exitCodeExceptionNoOutput
     , ByteStringOutputException (..)
 
       -- * Re-exports
@@ -634,12 +636,7 @@ checkExitCodeSTM p = do
     ec <- readTMVar (pExitCode p)
     case ec of
         ExitSuccess -> return ()
-        _ -> throwSTM ExitCodeException
-            { eceExitCode = ec
-            , eceProcessConfig = clearStreams (pConfig p)
-            , eceStdout = L.empty
-            , eceStderr = L.empty
-            }
+        _ -> throwSTM $ exitCodeExceptionNoOutput p ec
 
 -- | Internal
 clearStreams :: ProcessConfig stdin stdout stderr -> ProcessConfig () () ()
@@ -688,3 +685,45 @@ getStderr = pStderr
 -- @since 0.1.1
 unsafeProcessHandle :: Process stdin stdout stderr -> P.ProcessHandle
 unsafeProcessHandle = pHandle
+
+-- | Get an 'ExitCodeException' containing the process's stdout and stderr data.
+--
+-- Note that this will call 'waitExitCode' to block until the process exits, if
+-- it has not exited already.
+--
+-- Unlike 'checkExitCode' and similar, this will return an 'ExitCodeException'
+-- even if the process exits with 'ExitSuccess'.
+--
+-- @since 0.2.12.0
+exitCodeExceptionWithOutput :: MonadIO m
+                            => Process stdin (STM L.ByteString) (STM L.ByteString)
+                            -> m ExitCodeException
+exitCodeExceptionWithOutput process = liftIO $ atomically $ do
+    exitCode <- waitExitCodeSTM process
+    stdout <- getStdout process
+    stderr <- getStderr process
+    pure ExitCodeException
+        { eceExitCode = exitCode
+        , eceProcessConfig = pConfig process
+        , eceStdout = stdout
+        , eceStderr = stderr
+        }
+
+-- | Get an 'ExitCodeException' containing no data other than the exit code and
+-- process config.
+--
+-- Unlike 'checkExitCode' and similar, this will return an 'ExitCodeException'
+-- even if the process exits with 'ExitSuccess'.
+--
+-- @since 0.2.12.0
+exitCodeExceptionNoOutput :: Process stdin stdout stderr
+                          -> ExitCode
+                          -> ExitCodeException
+exitCodeExceptionNoOutput process exitCode =
+    ExitCodeException
+        { eceExitCode = exitCode
+        , eceProcessConfig = pConfig process
+        , eceStdout = L.empty
+        , eceStderr = L.empty
+        }
+
