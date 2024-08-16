@@ -30,6 +30,16 @@ jobs:
         exclude:
            - os: windows-latest
              resolver: lts-15
+           # Seems like ghcup on macosx-aarch64 doesn't support the
+           # GHCs needed for 14 to 17
+           - os: macos-latest
+             resolver: lts-14
+           - os: macos-latest
+             resolver: lts-15
+           - os: macos-latest
+             resolver: lts-16
+           - os: macos-latest
+             resolver: lts-17
 
     steps:
       - name: Clone project
