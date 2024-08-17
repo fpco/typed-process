@@ -621,15 +621,28 @@ data ExitCodeException = ExitCodeException
 instance Exception ExitCodeException
 instance Show ExitCodeException where
     show ece =
-        let decodeStrip = T.unpack . T.strip . TL.toStrict . TLE.decodeUtf8With lenientDecode
-            stdout = decodeStrip $ eceStdout ece
-            stderr = decodeStrip $ eceStderr ece
-            stdout' = if null stdout
+        let decode = TL.toStrict . TLE.decodeUtf8With lenientDecode
+
+            isAsciiSpace char = case char of
+                                  ' ' -> True
+                                  '\t' -> True
+                                  '\n' -> True
+                                  '\r' -> True
+                                  _ -> False
+            isOnlyAsciiWhitespace = T.null . T.dropAround isAsciiSpace
+
+            stdout = decode $ eceStdout ece
+            stderr = decode $ eceStderr ece
+            stdout' = if isOnlyAsciiWhitespace stdout
                          then []
-                         else ["\n\nStandard output:\n", stdout]
-            stderr' = if null stderr
+                         else [ "\n\nStandard output:\n"
+                              , T.unpack stdout
+                              ]
+            stderr' = if isOnlyAsciiWhitespace stderr
                          then []
-                         else ["\n\nStandard error:\n", stderr]
+                         else [ "\nStandard error:\n"
+                              , T.unpack stderr
+                              ]
         in concat $
             [ "Received "
             , show (eceExitCode ece)

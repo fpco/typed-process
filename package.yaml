@@ -21,6 +21,7 @@ dependencies:
 - stm
 - transformers
 - unliftio-core
+- text
 
 library:
   source-dirs: src
