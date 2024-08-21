@@ -1,5 +1,14 @@
 # ChangeLog for typed-process
 
+## 0.2.12.0
+
+* Add `getPid`, `exitCodeExceptionWithOutput`,
+  `exitCodeExceptionNoOutput`,
+
+* Re-export `System.Process.Pid`
+
+* Thanks to Rebecca Turner @9999years
+
 ## 0.2.11.1
 
 * No user-visible changes
