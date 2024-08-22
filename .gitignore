@@ -1,5 +1,4 @@
 .stack-work/
 *~
 tarballs/
-/typed-process.cabal
 stack.yaml.lock
