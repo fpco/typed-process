@@ -171,28 +171,28 @@ spec = do
       let expected = "Raw command: podman exec --detach-keys \"\" ctx bash"
        in show (proc "podman" ["exec", "--detach-keys", "", "ctx", "bash"]) `shouldBe` expected
 
-    describe "ProcessConfig" $ do
-        it "Show shell-escapes arguments" $ do
+    describe "Show ProcessConfig" $ do
+        it "shell-escapes arguments" $ do
             let processConfig = proc "echo" ["a", "", "\"b\"", "'c'", "\\d"]
             -- I promise this escaping behavior is correct; paste it into GHCi
             -- `putStrLn` and then paste it into `sh` to verify.
             show processConfig `shouldBe`
                 "Raw command: echo a \"\" \"\\\"b\\\"\" \"'c'\" \"\\\\d\""
 
-        it "Show displays working directory" $ do
+        it "displays working directory" $ do
             let processConfig = setWorkingDir "puppy/doggy" $ proc "true" []
             show processConfig `shouldBe`
                 "Raw command: true\n"
                 ++ "Run from: puppy/doggy"
 
-        it "Show displays environment (1 variable)" $ do
+        it "displays environment (1 variable)" $ do
             let processConfig = setEnv [("PUPPY", "DOGGY")] $ proc "true" []
             show processConfig `shouldBe`
                 "Raw command: true\n"
                 ++ "Environment:\n"
                 ++ "PUPPY=DOGGY"
 
-        it "Show displays environment (multiple variables)" $ do
+        it "displays environment (multiple variables)" $ do
             let processConfig =
                     setEnv [ ("PUPPY", "DOGGY")
                            , ("SOUND", "AWOO")
@@ -206,7 +206,7 @@ spec = do
                 ++ "SOUND=AWOO\n"
                 ++ "HOWLING=RIGHT_NOW"
 
-        it "Show displays working directory and environment" $ do
+        it "displays working directory and environment" $ do
             let processConfig =
                     setEnv [ ("PUPPY", "DOGGY")
                            , ("SOUND", "AWOO")
@@ -221,8 +221,8 @@ spec = do
                 ++ "SOUND=AWOO"
 
 
-    describe "ExitCodeException" $ do
-        it "Show" $ do
+    describe "Show ExitCodeException" $ do
+        it "shows ExitCodeException" $ do
             -- Note that the `show` output ends with a newline, so functions
             -- like `print` will output an extra blank line at the end of the
             -- output.
@@ -243,36 +243,38 @@ spec = do
                 ++ "Standard error:\n"
                 ++ "Uh oh!\n"
 
-        it "Show only stdout" $ do
-            let exitCodeException =
-                  ExitCodeException
-                      { eceExitCode = ExitFailure 1
-                      , eceProcessConfig = proc "show-puppy" []
-                      , eceStdout = fromString "No puppies found???\n"
-                      , eceStderr = fromString ""
-                      }
-            show exitCodeException `shouldBe`
-                "Received ExitFailure 1 when running\n"
-                ++ "Raw command: show-puppy\n"
-                ++ "\n"
-                ++ "Standard output:\n"
-                ++ "No puppies found???\n"
+        context "without stderr" $ do
+            it "shows ExitCodeException" $ do 
+                let exitCodeException =
+                      ExitCodeException
+                          { eceExitCode = ExitFailure 1
+                          , eceProcessConfig = proc "show-puppy" []
+                          , eceStdout = fromString "No puppies found???\n"
+                          , eceStderr = fromString ""
+                          }
+                show exitCodeException `shouldBe`
+                    "Received ExitFailure 1 when running\n"
+                    ++ "Raw command: show-puppy\n"
+                    ++ "\n"
+                    ++ "Standard output:\n"
+                    ++ "No puppies found???\n"
 
-        it "Show only stderr" $ do
-            let exitCodeException =
-                  ExitCodeException
-                      { eceExitCode = ExitFailure 1
-                      , eceProcessConfig = proc "show-puppy" []
-                      , eceStdout = fromString ""
-                      , eceStderr = fromString "No puppies found???\n"
-                      }
-            show exitCodeException `shouldBe`
-                "Received ExitFailure 1 when running\n"
-                ++ "Raw command: show-puppy\n"
-                ++ "Standard error:\n"
-                ++ "No puppies found???\n"
+        context "without stdout" $ do
+            it "shows ExitCodeException" $ do 
+                let exitCodeException =
+                      ExitCodeException
+                          { eceExitCode = ExitFailure 1
+                          , eceProcessConfig = proc "show-puppy" []
+                          , eceStdout = fromString ""
+                          , eceStderr = fromString "No puppies found???\n"
+                          }
+                show exitCodeException `shouldBe`
+                    "Received ExitFailure 1 when running\n"
+                    ++ "Raw command: show-puppy\n"
+                    ++ "Standard error:\n"
+                    ++ "No puppies found???\n"
 
-        it "Show does not trim stdout/stderr" $ do
+        it "does not trim stdout/stderr" $ do
             -- This looks weird, and I think it would be better to strip the
             -- whitespace from the output.
             let exitCodeException =
@@ -292,37 +294,39 @@ spec = do
                 ++ "Standard error:\n"
                 ++ "\t \ndoggy\n \t\n"
 
-        it "Show displays weirdly with no newlines in stdout" $ do
-            -- Sometimes, commands don't output _any_ newlines!
-            let exitCodeException =
-                  ExitCodeException
-                      { eceExitCode = ExitFailure 1
-                      , eceProcessConfig = proc "detect-doggies" []
-                      , eceStdout = fromString "puppy"
-                      , eceStderr = fromString ""
-                      }
-            show exitCodeException `shouldBe`
-                "Received ExitFailure 1 when running\n"
-                ++ "Raw command: detect-doggies\n"
-                ++ "\n"
-                ++ "Standard output:\n"
-                ++ "puppy"
+        context "without newlines in stdout" $ do
+            it "shows ExitCodeException" $ do
+                -- Sometimes, commands don't output _any_ newlines!
+                let exitCodeException =
+                      ExitCodeException
+                          { eceExitCode = ExitFailure 1
+                          , eceProcessConfig = proc "detect-doggies" []
+                          , eceStdout = fromString "puppy"
+                          , eceStderr = fromString ""
+                          }
+                show exitCodeException `shouldBe`
+                    "Received ExitFailure 1 when running\n"
+                    ++ "Raw command: detect-doggies\n"
+                    ++ "\n"
+                    ++ "Standard output:\n"
+                    ++ "puppy"
 
-        it "Show displays weirdly with no newlines in stdout or stderr" $ do
-            -- If the stderr isn't empty and stdout doesn't end with a newline,
-            -- the blank line between the two sections disappears.
-            let exitCodeException =
-                  ExitCodeException
-                      { eceExitCode = ExitFailure 1
-                      , eceProcessConfig = proc "detect-doggies" []
-                      , eceStdout = fromString "puppy"
-                      , eceStderr = fromString "doggy"
-                      }
-            show exitCodeException `shouldBe`
-                "Received ExitFailure 1 when running\n"
-                ++ "Raw command: detect-doggies\n"
-                ++ "\n"
-                ++ "Standard output:\n"
-                ++ "puppy\n"
-                ++ "Standard error:\n"
-                ++ "doggy"
+        context "without newlines in stdout or stderr" $ do
+            it "shows ExitCodeException" $ do
+                -- If the stderr isn't empty and stdout doesn't end with a newline,
+                -- the blank line between the two sections disappears.
+                let exitCodeException =
+                      ExitCodeException
+                          { eceExitCode = ExitFailure 1
+                          , eceProcessConfig = proc "detect-doggies" []
+                          , eceStdout = fromString "puppy"
+                          , eceStderr = fromString "doggy"
+                          }
+                show exitCodeException `shouldBe`
+                    "Received ExitFailure 1 when running\n"
+                    ++ "Raw command: detect-doggies\n"
+                    ++ "\n"
+                    ++ "Standard output:\n"
+                    ++ "puppy\n"
+                    ++ "Standard error:\n"
+                    ++ "doggy"
