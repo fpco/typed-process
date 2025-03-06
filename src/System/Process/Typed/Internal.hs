@@ -566,12 +566,20 @@ byteStringFromHandle pc h = do
 
     return (readTMVar mvar >>= either throwSTM return, hClose h)
 
--- | Create a new pipe between this process and the child, and return
--- a 'Handle' to communicate with the child.
+-- | Create a new pipe between this process and the child, and return a 'Handle'
+-- to communicate with the child. The handle is closed upon process exit.
 --
 -- @since 0.1.0.0
 createPipe :: StreamSpec anyStreamType Handle
 createPipe = mkPipeStreamSpec $ \_ h -> return (h, hClose h)
+
+-- | Create a new pipe between this process and the child, and return a 'Handle'
+-- to communicate with the child, but do _not_ close it on process exit. This is
+-- useful, for example, to read the stderr from a sub-process after it stopped.
+--
+-- @since 0.2.12.0
+createPipeOpen :: StreamSpec anyStreamType Handle
+createPipeOpen = mkPipeStreamSpec $ \_ h -> return (h, return ())
 
 -- | Use the provided 'Handle' for the child process, and when the
 -- process exits, do /not/ close it. This is useful if, for example,
