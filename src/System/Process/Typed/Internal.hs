@@ -17,6 +17,10 @@ import qualified Control.Exception as E
 import Control.Exception hiding (bracket, finally, handle)
 import Control.Monad (void)
 import qualified System.Process as P
+import qualified Data.Text as T
+import Data.Text.Encoding.Error (lenientDecode)
+import qualified Data.Text.Lazy as TL (toStrict)
+import qualified Data.Text.Lazy.Encoding as TLE
 import Data.Typeable (Typeable)
 import System.IO (Handle, hClose, IOMode(ReadWriteMode), withBinaryFile)
 import Control.Concurrent.Async (async)
@@ -616,17 +620,20 @@ data ExitCodeException = ExitCodeException
 instance Exception ExitCodeException
 instance Show ExitCodeException where
     show ece =
-        let stdout = L8.unpack $ eceStdout ece
-            stderr = L8.unpack $ eceStderr ece
-            stdout' = if L.null (eceStdout ece)
+        let decode = TL.toStrict . TLE.decodeUtf8With lenientDecode
+
+            stdout = decode $ eceStdout ece
+            stderr = decode $ eceStderr ece
+
+            stdout' = if T.null stdout
                          then []
                          else [ "\n\nStandard output:\n"
-                              , stdout
+                              , T.unpack stdout
                               ]
-            stderr' = if L.null (eceStderr ece)
+            stderr' = if T.null stderr
                          then []
                          else [ "\nStandard error:\n"
-                              , stderr
+                              , T.unpack stderr
                               ]
         in concat $
             [ "Received "

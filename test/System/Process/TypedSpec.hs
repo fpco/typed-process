@@ -341,3 +341,106 @@ spec = do
                     ++ "puppy\n"
                     ++ "Standard error:\n"
                     ++ "doggy"
+
+        it "decodes UTF-8" $ do
+            let exitCodeException =
+                  ExitCodeException
+                      { eceExitCode = ExitFailure 1
+                      , eceProcessConfig = proc "puppy" []
+                      , eceStdout = L.pack [0x61, 0xc2, 0xa9, 0xe2, 0x82, 0xac, 0xf0, 0x9f, 0x92, 0xa9, 0x0a]
+                      , eceStderr = L.pack [0x61, 0xc2, 0xa9, 0xe2, 0x82, 0xac, 0xf0, 0x9f, 0x92, 0xa9, 0x0a]
+                      }
+            show exitCodeException `shouldBe`
+                "Received ExitFailure 1 when running\n"
+                ++ "Raw command: puppy\n"
+                ++ "\n"
+                ++ "Standard output:\n"
+                ++ "a©€💩\n"
+                ++ "\n"
+                ++ "Standard error:\n"
+                ++ "a©€💩\n"
+
+        it "decodes UTF-8 leniently (overlong)" $ do
+            let exitCodeException =
+                  ExitCodeException
+                      { eceExitCode = ExitFailure 1
+                      , eceProcessConfig = proc "puppy" []
+                      , -- Overlong sequence, U+20AC € encoded as 4 bytes.
+                        -- We get four U+FFFD � replacement characters out, one
+                        -- for each byte in the sequence.
+                        eceStdout = L.pack [ 0xf0, 0x82, 0x82, 0xac, 0x0a ]
+                      , eceStderr = L.empty
+                      }
+            show exitCodeException `shouldBe`
+                "Received ExitFailure 1 when running\n"
+                ++ "Raw command: puppy\n"
+                ++ "\n"
+                ++ "Standard output:\n"
+                ++ "����\n"
+
+        it "decodes UTF-8 leniently (lone surrogate)" $ do
+            let exitCodeException =
+                  ExitCodeException
+                      { eceExitCode = ExitFailure 1
+                      , eceProcessConfig = proc "puppy" []
+                      , -- Half of a surrogate pair, invalid in UTF-8. (U+D800)
+                        eceStdout = L.pack [ 0xed, 0xa0, 0x80, 0x0a]
+                      , eceStderr = L.empty
+                      }
+            show exitCodeException `shouldBe`
+                "Received ExitFailure 1 when running\n"
+                ++ "Raw command: puppy\n"
+                ++ "\n"
+                ++ "Standard output:\n"
+                ++ "���\n"
+
+        it "decodes UTF-8 leniently (unexpected continuation)" $ do
+            let exitCodeException =
+                  ExitCodeException
+                      { eceExitCode = ExitFailure 1
+                      , eceProcessConfig = proc "puppy" []
+                      , -- An unexpected continuation byte.
+                        eceStdout = L.pack [ 0xa0, 0x80, 0x0a]
+                      , eceStderr = L.empty
+                      }
+            show exitCodeException `shouldBe`
+                "Received ExitFailure 1 when running\n"
+                ++ "Raw command: puppy\n"
+                ++ "\n"
+                ++ "Standard output:\n"
+                ++ "��\n"
+
+        it "decodes UTF-8 leniently (missing continuation)" $ do
+            let exitCodeException =
+                  ExitCodeException
+                      { eceExitCode = ExitFailure 1
+                      , eceProcessConfig = proc "puppy" []
+                      , -- Missing a continuation byte.
+                        eceStdout = L.pack [ 0xf0, 0x9f, 0x90, 0x0a]
+                      , eceStderr = L.empty
+                      }
+            show exitCodeException `shouldBe`
+                "Received ExitFailure 1 when running\n"
+                ++ "Raw command: puppy\n"
+                ++ "\n"
+                ++ "Standard output:\n"
+                ++ "���\n"
+
+        it "decodes UTF-8 leniently (invalid byte)" $ do
+            let exitCodeException =
+                  ExitCodeException
+                      { eceExitCode = ExitFailure 1
+                      , eceProcessConfig = proc "puppy" []
+                      , -- Invalid bytes (no defined meaning in UTF-8).
+                        eceStdout = L.pack [ 0xc0, 0x0a, 0xc1, 0x0a, 0xf5, 0x0a, 0xff, 0x0a]
+                      , eceStderr = L.empty
+                      }
+            show exitCodeException `shouldBe`
+                "Received ExitFailure 1 when running\n"
+                ++ "Raw command: puppy\n"
+                ++ "\n"
+                ++ "Standard output:\n"
+                ++ "�\n"
+                ++ "�\n"
+                ++ "�\n"
+                ++ "�\n"
