@@ -17,6 +17,7 @@ import qualified Control.Exception as E
 import Control.Exception hiding (bracket, finally, handle)
 import Control.Monad (void)
 import qualified System.Process as P
+import Data.List (dropWhileEnd)
 import Data.Typeable (Typeable)
 import System.IO (Handle, hClose, IOMode(ReadWriteMode), withBinaryFile)
 import Control.Concurrent.Async (async)
@@ -88,29 +89,37 @@ data ProcessConfig stdin stdout stderr = ProcessConfig
 #endif
     }
 instance Show (ProcessConfig stdin stdout stderr) where
-    show pc = concat
-        [ case pcCmdSpec pc of
-            P.ShellCommand s -> "Shell command: " ++ s
-            P.RawCommand x xs -> "Raw command: " ++ unwords (map escape (x:xs))
-        , "\n"
-        , case pcWorkingDir pc of
-            Nothing -> ""
-            Just wd -> concat
-                [ "Run from: "
-                , wd
-                , "\n"
-                ]
-        , case pcEnv pc of
-            Nothing -> ""
-            Just e -> unlines
-                $ "Modified environment:"
-                : map (\(k, v) -> concat [k, "=", v]) e
-        ]
+    show pc = concat $
+        command
+        ++ workingDir
+        ++ env
       where
         escape x
             | any (`elem` " \\\"'") x = show x
             | x == "" = "\"\""
             | otherwise = x
+
+        command =
+            case pcCmdSpec pc of
+                P.ShellCommand s -> ["Shell command: ", s]
+                P.RawCommand program args ->
+                    ["Raw command:"]
+                    ++ do arg <- program:args
+                          [" ", escape arg]
+
+        workingDir =
+            case pcWorkingDir pc of
+              Nothing -> []
+              Just wd -> ["\nRun from: ", wd]
+
+        env =
+            case pcEnv pc of
+              Nothing -> []
+              Just env' ->
+                  ["\nModified environment:"]
+                  ++ do (key, value) <- env'
+                        ["\n", key, "=", value]
+
 instance (stdin ~ (), stdout ~ (), stderr ~ ())
   => IsString (ProcessConfig stdin stdout stderr) where
     fromString s
@@ -611,20 +620,37 @@ data ExitCodeException = ExitCodeException
     deriving Typeable
 instance Exception ExitCodeException
 instance Show ExitCodeException where
-    show ece = concat
-        [ "Received "
-        , show (eceExitCode ece)
-        , " when running\n"
-        -- Too much output for an exception if we show the modified
-        -- environment, so hide it
-        , show (eceProcessConfig ece) { pcEnv = Nothing }
-        , if L.null (eceStdout ece)
-            then ""
-            else "Standard output:\n\n" ++ L8.unpack (eceStdout ece)
-        , if L.null (eceStderr ece)
-            then ""
-            else "Standard error:\n\n" ++ L8.unpack (eceStderr ece)
-        ]
+    show ece =
+        let stdout = trimTrailingAsciiNewlines $ L8.unpack $ eceStdout ece
+            stderr = trimTrailingAsciiNewlines $ L8.unpack $ eceStderr ece
+
+            isAsciiNewline char = case char of
+                                  '\n' -> True
+                                  '\r' -> True
+                                  _ -> False
+            trimTrailingAsciiNewlines = dropWhileEnd isAsciiNewline
+
+
+            stdout' = if null stdout
+                         then []
+                         else [ "\n\nStandard output:\n"
+                              , stdout
+                              ]
+            stderr' = if null stderr
+                         then []
+                         else [ "\n\nStandard error:\n"
+                              , stderr
+                              ]
+        in concat $
+            [ "Received "
+            , show (eceExitCode ece)
+            , " when running\n"
+            -- Too much output for an exception if we show the modified
+            -- environment, so hide it.
+            , show (eceProcessConfig ece) { pcEnv = Nothing }
+            ]
+            ++ stdout'
+            ++ stderr'
 
 -- | Wrapper for when an exception is thrown when reading from a child
 -- process, used by 'byteStringOutput'.
