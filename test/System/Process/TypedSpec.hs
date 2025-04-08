@@ -12,7 +12,7 @@ import System.Exit
 import System.IO.Temp
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Lazy as L
-import Data.String (IsString)
+import Data.String (IsString(..))
 import Data.Monoid ((<>))
 import qualified Data.ByteString.Base64 as B64
 
@@ -168,5 +168,176 @@ spec = do
         L.take (L.length expected) lbs1 `shouldBe` expected
 
     it "empty param are showed" $
-      let expected = "Raw command: podman exec --detach-keys \"\" ctx bash\n"
+      let expected = "Raw command: podman exec --detach-keys \"\" ctx bash"
        in show (proc "podman" ["exec", "--detach-keys", "", "ctx", "bash"]) `shouldBe` expected
+
+    describe "Show ProcessConfig" $ do
+        it "shell-escapes arguments" $ do
+            let processConfig = proc "echo" ["a", "", "\"b\"", "'c'", "\\d"]
+            -- I promise this escaping behavior is correct; paste it into GHCi
+            -- `putStrLn` and then paste it into `sh` to verify.
+            show processConfig `shouldBe`
+                "Raw command: echo a \"\" \"\\\"b\\\"\" \"'c'\" \"\\\\d\""
+
+        it "displays working directory" $ do
+            let processConfig = setWorkingDir "puppy/doggy" $ proc "true" []
+            show processConfig `shouldBe`
+                "Raw command: true\n"
+                ++ "Run from: puppy/doggy"
+
+        it "displays environment (inherited)" $ do
+            let processConfig = setEnvInherit $ proc "true" []
+            show processConfig `shouldBe`
+                "Raw command: true"
+
+        it "displays environment (cleared)" $ do
+            let processConfig = setEnv [] $ proc "true" []
+            show processConfig `shouldBe`
+                "Raw command: true\n"
+                ++ "Modified environment:" -- lol
+
+        it "displays environment (1 variable)" $ do
+            let processConfig = setEnv [("PUPPY", "DOGGY")] $ proc "true" []
+            show processConfig `shouldBe`
+                "Raw command: true\n"
+                ++ "Modified environment:\n"
+                ++ "PUPPY=DOGGY"
+
+        it "displays environment (multiple variables)" $ do
+            let processConfig =
+                    setEnv [ ("PUPPY", "DOGGY")
+                           , ("SOUND", "AWOO")
+                           , ("HOWLING", "RIGHT_NOW")
+                           ]
+                    $ proc "true" []
+            show processConfig `shouldBe`
+                "Raw command: true\n"
+                ++ "Modified environment:\n"
+                ++ "PUPPY=DOGGY\n"
+                ++ "SOUND=AWOO\n"
+                ++ "HOWLING=RIGHT_NOW"
+
+        it "displays working directory and environment" $ do
+            let processConfig =
+                    setEnv [ ("PUPPY", "DOGGY")
+                           , ("SOUND", "AWOO")
+                           ]
+                    $ setWorkingDir "puppy/doggy"
+                    $ proc "true" []
+            show processConfig `shouldBe`
+                "Raw command: true\n"
+                ++ "Run from: puppy/doggy\n"
+                ++ "Modified environment:\n"
+                ++ "PUPPY=DOGGY\n"
+                ++ "SOUND=AWOO"
+
+
+    describe "Show ExitCodeException" $ do
+        it "shows ExitCodeException" $ do
+            -- Note that the `show` output ends with a newline, so functions
+            -- like `print` will output an extra blank line at the end of the
+            -- output.
+            let exitCodeException =
+                  ExitCodeException
+                      { eceExitCode = ExitFailure 1
+                      , eceProcessConfig = proc "cp" ["a", "b"]
+                      , eceStdout = fromString "Copied OK\n"
+                      , eceStderr = fromString "Uh oh!\n"
+                      }
+            show exitCodeException `shouldBe`
+                "Received ExitFailure 1 when running\n"
+                ++ "Raw command: cp a b\n"
+                ++ "\n"
+                ++ "Standard output:\n"
+                ++ "Copied OK\n"
+                ++ "\n"
+                ++ "Standard error:\n"
+                ++ "Uh oh!\n"
+
+        context "without stderr" $ do
+            it "shows ExitCodeException" $ do 
+                let exitCodeException =
+                      ExitCodeException
+                          { eceExitCode = ExitFailure 1
+                          , eceProcessConfig = proc "show-puppy" []
+                          , eceStdout = fromString "No puppies found???\n"
+                          , eceStderr = fromString ""
+                          }
+                show exitCodeException `shouldBe`
+                    "Received ExitFailure 1 when running\n"
+                    ++ "Raw command: show-puppy\n"
+                    ++ "\n"
+                    ++ "Standard output:\n"
+                    ++ "No puppies found???\n"
+
+        context "without stdout" $ do
+            it "shows ExitCodeException" $ do 
+                let exitCodeException =
+                      ExitCodeException
+                          { eceExitCode = ExitFailure 1
+                          , eceProcessConfig = proc "show-puppy" []
+                          , eceStdout = fromString ""
+                          , eceStderr = fromString "No puppies found???\n"
+                          }
+                show exitCodeException `shouldBe`
+                    "Received ExitFailure 1 when running\n"
+                    ++ "Raw command: show-puppy\n"
+                    ++ "Standard error:\n"
+                    ++ "No puppies found???\n"
+
+        it "does not trim stdout/stderr" $ do
+            -- This looks weird, and I think it would be better to strip the
+            -- whitespace from the output.
+            let exitCodeException =
+                  ExitCodeException
+                      { eceExitCode = ExitFailure 1
+                      , eceProcessConfig = proc "detect-doggies" []
+                      , eceStdout = fromString "\n\npuppy\n\n \n"
+                      , eceStderr = fromString "\t \ndoggy\n \t\n"
+                      }
+            show exitCodeException `shouldBe`
+                "Received ExitFailure 1 when running\n"
+                ++ "Raw command: detect-doggies\n"
+                ++ "\n"
+                ++ "Standard output:\n"
+                ++ "\n\npuppy\n\n \n"
+                ++ "\n"
+                ++ "Standard error:\n"
+                ++ "\t \ndoggy\n \t\n"
+
+        context "without newlines in stdout" $ do
+            it "shows ExitCodeException" $ do
+                -- Sometimes, commands don't output _any_ newlines!
+                let exitCodeException =
+                      ExitCodeException
+                          { eceExitCode = ExitFailure 1
+                          , eceProcessConfig = proc "detect-doggies" []
+                          , eceStdout = fromString "puppy"
+                          , eceStderr = fromString ""
+                          }
+                show exitCodeException `shouldBe`
+                    "Received ExitFailure 1 when running\n"
+                    ++ "Raw command: detect-doggies\n"
+                    ++ "\n"
+                    ++ "Standard output:\n"
+                    ++ "puppy"
+
+        context "without newlines in stdout or stderr" $ do
+            it "shows ExitCodeException" $ do
+                -- If the stderr isn't empty and stdout doesn't end with a newline,
+                -- the blank line between the two sections disappears.
+                let exitCodeException =
+                      ExitCodeException
+                          { eceExitCode = ExitFailure 1
+                          , eceProcessConfig = proc "detect-doggies" []
+                          , eceStdout = fromString "puppy"
+                          , eceStderr = fromString "doggy"
+                          }
+                show exitCodeException `shouldBe`
+                    "Received ExitFailure 1 when running\n"
+                    ++ "Raw command: detect-doggies\n"
+                    ++ "\n"
+                    ++ "Standard output:\n"
+                    ++ "puppy\n"
+                    ++ "Standard error:\n"
+                    ++ "doggy"
