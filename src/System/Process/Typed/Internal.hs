@@ -17,6 +17,7 @@ import qualified Control.Exception as E
 import Control.Exception hiding (bracket, finally, handle)
 import Control.Monad (void)
 import qualified System.Process as P
+import Data.List (dropWhileEnd)
 import Data.Typeable (Typeable)
 import System.IO (Handle, hClose, IOMode(ReadWriteMode), withBinaryFile)
 import Control.Concurrent.Async (async)
@@ -616,16 +617,24 @@ data ExitCodeException = ExitCodeException
 instance Exception ExitCodeException
 instance Show ExitCodeException where
     show ece =
-        let stdout = L8.unpack $ eceStdout ece
-            stderr = L8.unpack $ eceStderr ece
-            stdout' = if L.null (eceStdout ece)
+        let stdout = trimTrailingAsciiNewlines $ L8.unpack $ eceStdout ece
+            stderr = trimTrailingAsciiNewlines $ L8.unpack $ eceStderr ece
+
+            isAsciiNewline char = case char of
+                                  '\n' -> True
+                                  '\r' -> True
+                                  _ -> False
+            trimTrailingAsciiNewlines = dropWhileEnd isAsciiNewline
+
+
+            stdout' = if null stdout
                          then []
                          else [ "\n\nStandard output:\n"
                               , stdout
                               ]
-            stderr' = if L.null (eceStderr ece)
+            stderr' = if null stderr
                          then []
-                         else [ "\nStandard error:\n"
+                         else [ "\n\nStandard error:\n"
                               , stderr
                               ]
         in concat $

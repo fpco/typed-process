@@ -234,9 +234,6 @@ spec = do
 
     describe "Show ExitCodeException" $ do
         it "shows ExitCodeException" $ do
-            -- Note that the `show` output ends with a newline, so functions
-            -- like `print` will output an extra blank line at the end of the
-            -- output.
             let exitCodeException =
                   ExitCodeException
                       { eceExitCode = ExitFailure 1
@@ -252,7 +249,7 @@ spec = do
                 ++ "Copied OK\n"
                 ++ "\n"
                 ++ "Standard error:\n"
-                ++ "Uh oh!\n"
+                ++ "Uh oh!"
 
         context "without stderr" $ do
             it "shows ExitCodeException" $ do 
@@ -268,7 +265,7 @@ spec = do
                     ++ "Raw command: show-puppy\n"
                     ++ "\n"
                     ++ "Standard output:\n"
-                    ++ "No puppies found???\n"
+                    ++ "No puppies found???"
 
         context "without stdout" $ do
             it "shows ExitCodeException" $ do 
@@ -282,12 +279,55 @@ spec = do
                 show exitCodeException `shouldBe`
                     "Received ExitFailure 1 when running\n"
                     ++ "Raw command: show-puppy\n"
+                    ++ "\n"
                     ++ "Standard error:\n"
-                    ++ "No puppies found???\n"
+                    ++ "No puppies found???"
 
-        it "does not trim stdout/stderr" $ do
-            -- This looks weird, and I think it would be better to strip the
-            -- whitespace from the output.
+        it "trims newlines from stdout/stderr" $ do
+            -- This keeps the `Show` output looking nice regardless of how many
+            -- newlines (if any) the command outputs.
+            --
+            -- This also makes sure that the `Show` output doesn't end with a
+            -- spurious trailing newline, making it easier to compose `Show`
+            -- instances together.
+            let exitCodeException =
+                  ExitCodeException
+                      { eceExitCode = ExitFailure 1
+                      , eceProcessConfig = proc "detect-doggies" []
+                      , eceStdout = fromString "puppy\n\n"
+                      , eceStderr = fromString "doggy\r\n"
+                      }
+            show exitCodeException `shouldBe`
+                "Received ExitFailure 1 when running\n"
+                ++ "Raw command: detect-doggies\n"
+                ++ "\n"
+                ++ "Standard output:\n"
+                ++ "puppy\n"
+                ++ "\n"
+                ++ "Standard error:\n"
+                ++ "doggy"
+
+        it "adds newlines to stdout/stderr" $ do
+            -- This keeps the `Show` output looking nice when the output
+            -- doesn't include a trailing newline.
+            let exitCodeException =
+                  ExitCodeException
+                      { eceExitCode = ExitFailure 1
+                      , eceProcessConfig = proc "detect-doggies" []
+                      , eceStdout = fromString "puppy"
+                      , eceStderr = fromString "doggy"
+                      }
+            show exitCodeException `shouldBe`
+                "Received ExitFailure 1 when running\n"
+                ++ "Raw command: detect-doggies\n"
+                ++ "\n"
+                ++ "Standard output:\n"
+                ++ "puppy\n"
+                ++ "\n"
+                ++ "Standard error:\n"
+                ++ "doggy"
+
+        it "trims newlines but not other whitespace from stdout/stderr" $ do
             let exitCodeException =
                   ExitCodeException
                       { eceExitCode = ExitFailure 1
@@ -300,10 +340,10 @@ spec = do
                 ++ "Raw command: detect-doggies\n"
                 ++ "\n"
                 ++ "Standard output:\n"
-                ++ "\n\npuppy\n\n \n"
-                ++ "\n"
+                ++ "\n\npuppy\n\n "
+                ++ "\n\n"
                 ++ "Standard error:\n"
-                ++ "\t \ndoggy\n \t\n"
+                ++ "\t \ndoggy\n \t"
 
         context "without newlines in stdout" $ do
             it "shows ExitCodeException" $ do
@@ -324,8 +364,6 @@ spec = do
 
         context "without newlines in stdout or stderr" $ do
             it "shows ExitCodeException" $ do
-                -- If the stderr isn't empty and stdout doesn't end with a newline,
-                -- the blank line between the two sections disappears.
                 let exitCodeException =
                       ExitCodeException
                           { eceExitCode = ExitFailure 1
@@ -339,5 +377,6 @@ spec = do
                     ++ "\n"
                     ++ "Standard output:\n"
                     ++ "puppy\n"
+                    ++ "\n"
                     ++ "Standard error:\n"
                     ++ "doggy"
