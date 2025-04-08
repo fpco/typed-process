@@ -23,9 +23,11 @@ import Control.Concurrent.Async (async)
 import Control.Concurrent.STM (newEmptyTMVarIO, atomically, putTMVar, readTMVar, STM, tryPutTMVar, throwSTM)
 import System.Exit (ExitCode)
 import qualified Data.ByteString.Lazy as L
-import qualified Data.ByteString.Lazy.Char8 as L8
 import Data.String (IsString (fromString))
 import Control.Monad.IO.Unlift
+import qualified Data.Text.Encoding.Error as TEE
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Encoding as TLE
 
 #if MIN_VERSION_process(1, 4, 0) && !WINDOWS
 import System.Posix.Types (GroupID, UserID)
@@ -626,7 +628,9 @@ instance Show ExitCodeException where
             else "Standard error:\n\n" ++ unpack (eceStderr ece)
         ]
       where
-        unpack = L8.unpack
+        -- Format with UTF-8, because we have to choose some encoding,
+        -- and UTF-8 is the least likely to be wrong in general.
+        unpack = TL.unpack . TLE.decodeUtf8With TEE.lenientDecode
 
 -- | Wrapper for when an exception is thrown when reading from a child
 -- process, used by 'byteStringOutput'.

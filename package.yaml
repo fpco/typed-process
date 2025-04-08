@@ -19,6 +19,7 @@ dependencies:
 - bytestring
 - process >=1.2
 - stm
+- text
 - transformers
 - unliftio-core
 
