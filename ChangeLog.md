@@ -1,5 +1,9 @@
 # ChangeLog for typed-process
 
+* Format stdout and stderr in `ExitCodeException` assuming they are in
+  UTF-8.  See [#87](https://github.com/fpco/typed-process/pull/87).
+  Thanks to @9999years for the legwork on this change.
+
 ## 0.2.12.0
 
 * Add `getPid`, `exitCodeExceptionWithOutput`,
