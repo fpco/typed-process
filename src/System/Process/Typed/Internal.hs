@@ -620,11 +620,13 @@ instance Show ExitCodeException where
         , show (eceProcessConfig ece) { pcEnv = Nothing }
         , if L.null (eceStdout ece)
             then ""
-            else "Standard output:\n\n" ++ L8.unpack (eceStdout ece)
+            else "Standard output:\n\n" ++ unpack (eceStdout ece)
         , if L.null (eceStderr ece)
             then ""
-            else "Standard error:\n\n" ++ L8.unpack (eceStderr ece)
+            else "Standard error:\n\n" ++ unpack (eceStderr ece)
         ]
+      where
+        unpack = L8.unpack
 
 -- | Wrapper for when an exception is thrown when reading from a child
 -- process, used by 'byteStringOutput'.
