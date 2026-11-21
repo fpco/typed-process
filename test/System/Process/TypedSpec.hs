@@ -5,6 +5,8 @@ module System.Process.TypedSpec (spec) where
 import System.Process.Typed
 import System.Process.Typed.Internal
 import System.IO
+import System.Timeout (timeout)
+import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (Concurrently (..))
 import Control.Concurrent.STM (atomically)
 import Test.Hspec
@@ -136,6 +138,16 @@ spec = do
           withProcessTerm_ (proc "sleep" ["1"]) (const $ pure ())
           `shouldThrow` anyException
     -}
+
+    -- https://github.com/fpco/typed-process/issues/84: a reader blocked
+    -- on the output pipe made the cleanup wait for the process to exit
+    -- by itself, before terminating it.
+    it "withProcessTerm with byteStringOutput doesn't wait for the process" $ do
+        result <- timeout 5000000 $
+            withProcessTerm (setStdout byteStringOutput $ proc "sleep" ["1000"])
+                -- Let the reader block on the pipe first.
+                (const $ threadDelay 100000)
+        result `shouldBe` Just ()
 
     it "interleaved output" $ withSystemTempFile "interleaved-output" $ \fp h -> do
         S.hPut h "\necho 'stdout'\n>&2 echo 'stderr'\necho 'stdout'"
