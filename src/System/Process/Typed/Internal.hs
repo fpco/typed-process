@@ -19,7 +19,7 @@ import Control.Monad (void)
 import qualified System.Process as P
 import Data.Typeable (Typeable)
 import System.IO (Handle, hClose, IOMode(ReadWriteMode), withBinaryFile)
-import Control.Concurrent.Async (async)
+import Control.Concurrent.Async (async, cancel)
 import Control.Concurrent.STM (newEmptyTMVarIO, atomically, putTMVar, readTMVar, STM, tryPutTMVar, throwSTM)
 import System.Exit (ExitCode)
 import qualified Data.ByteString.Lazy as L
@@ -556,7 +556,7 @@ byteStringFromHandle
 byteStringFromHandle pc h = do
     mvar <- newEmptyTMVarIO
 
-    void $ async $ do
+    reader <- async $ do
         let loop front = do
                 bs <- S.hGetSome h defaultChunkSize
                 if S.null bs
@@ -566,7 +566,10 @@ byteStringFromHandle pc h = do
             atomically $ void $ tryPutTMVar mvar $ Left $ ByteStringOutputException e pc
             throwIO e
 
-    return (readTMVar mvar >>= either throwSTM return, hClose h)
+    -- Cancel the reader before closing the handle: a reader blocked in
+    -- hGetSome holds the handle's lock until the child writes or exits,
+    -- so hClose alone would wait for the child to exit by itself.
+    return (readTMVar mvar >>= either throwSTM return, cancel reader >> hClose h)
 
 -- | Create a new pipe between this process and the child, and return
 -- a 'Handle' to communicate with the child.
